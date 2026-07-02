@@ -4,6 +4,20 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.4] - 2026-07-03
+
+### Added
+- Each session row now shows the **model** it's running (e.g. `claude-opus-4-8`) in
+  monospace, on its own line under the prompt. It's read from the session's most recent
+  assistant turn; a session that hasn't replied yet simply omits it.
+
+### Changed
+- Rows now size to their **natural height** instead of a fixed height, so a short session
+  takes less vertical space than a busy one with a two-line prompt.
+- The **directory** moved off the title line onto its own line (the parent path, since the
+  folder name is already the title), giving each row a compact stack under the prompt:
+  model → path → branch. The dropdown shows about 3.5 rows before scrolling.
+
 ## [0.1.3] - 2026-06-28
 
 ### Fixed
@@ -63,6 +77,7 @@ First release.
 - `AgentMCore` library (models, JSONL parser, status grouping, formatting) with unit tests.
 - `scripts/make-app.sh` to package a double-clickable, menu-bar-only `.app`.
 
+[0.1.4]: https://github.com/wynnwu/agent-m/releases/tag/v0.1.4
 [0.1.3]: https://github.com/wynnwu/agent-m/releases/tag/v0.1.3
 [0.1.2]: https://github.com/wynnwu/agent-m/releases/tag/v0.1.2
 [0.1.1]: https://github.com/wynnwu/agent-m/releases/tag/v0.1.1

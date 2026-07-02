@@ -7,6 +7,7 @@ struct CachedInfo: Sendable {
     let prompt: String?
     let branch: String?
     let asks: Bool
+    let model: String?
 }
 
 @MainActor
@@ -16,6 +17,7 @@ final class AgentService {
     private(set) var lastPrompts: [String: String] = [:]
     private(set) var lastActivity: [String: Date] = [:]
     private(set) var gitBranches: [String: String] = [:]
+    private(set) var models: [String: String] = [:]
     var errorMessage: String?
 
     /// Set by the UI: poll fast while the user is looking at the popover.
@@ -72,11 +74,12 @@ final class AgentService {
                     (s.kind == .interactive) ? s.pid.map { (s.sessionId, $0) } : nil
                 })
             let cacheIn = self.infoCache
-            let io = await Task.detached { () -> (act: [String: Date], prompts: [String: String], branches: [String: String], asks: [String: Bool], registry: [String: String], cache: [String: CachedInfo]) in
+            let io = await Task.detached { () -> (act: [String: Date], prompts: [String: String], branches: [String: String], asks: [String: Bool], models: [String: String], registry: [String: String], cache: [String: CachedInfo]) in
                 var act: [String: Date] = [:]
                 var prompts: [String: String] = [:]
                 var branches: [String: String] = [:]
                 var asks: [String: Bool] = [:]
+                var models: [String: String] = [:]
                 var registry: [String: String] = [:]
                 var cache = cacheIn
                 for (id, pid) in interactivePIDs {
@@ -91,20 +94,22 @@ final class AgentService {
                         info = cached // unchanged file → reuse (avoids re-reading huge transcripts)
                     } else {
                         let e = TranscriptIO.tailInfo(atPath: path)
-                        info = CachedInfo(size: size, prompt: e.prompt, branch: e.branch, asks: e.asksQuestion)
+                        info = CachedInfo(size: size, prompt: e.prompt, branch: e.branch, asks: e.asksQuestion, model: e.model)
                         cache[id] = info
                     }
                     if let p = info.prompt { prompts[id] = p }
                     if let b = info.branch { branches[id] = b }
+                    if let m = info.model { models[id] = m }
                     asks[id] = info.asks
                 }
                 cache = cache.filter { ids.contains($0.key) } // drop sessions that went away
-                return (act, prompts, branches, asks, registry, cache)
+                return (act, prompts, branches, asks, models, registry, cache)
             }.value
             self.infoCache = io.cache
             self.lastActivity = io.act
             self.lastPrompts = io.prompts
             self.gitBranches = io.branches
+            self.models = io.models
             self.groups = groupSessions(sessions, lastActivity: io.act, asksQuestion: io.asks,
                                         registryStatus: io.registry, now: Date())
 

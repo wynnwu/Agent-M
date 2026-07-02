@@ -80,4 +80,30 @@ final class TranscriptParserTests: XCTestCase {
         let lines = [#"{"type":"assistant","message":{"role":"assistant","stop_reason":"tool_use","content":[{"type":"text","text":"Let me know once that's done."}]}}"#]
         XCTAssertFalse(TranscriptParser.lastAssistantAsksQuestion(in: lines))
     }
+
+    func test_lastAssistantModel_returns_latest() {
+        // Later assistant turns win — a session that switched models shows its current one.
+        let lines = [
+            #"{"type":"assistant","message":{"role":"assistant","model":"claude-sonnet-5","content":[{"type":"text","text":"hi"}]}}"#,
+            #"{"type":"assistant","message":{"role":"assistant","model":"claude-opus-4-8","content":[{"type":"text","text":"bye"}]}}"#,
+        ]
+        XCTAssertEqual(TranscriptParser.lastAssistantModel(in: lines), "claude-opus-4-8")
+    }
+
+    func test_lastAssistantModel_nil_when_no_assistant() {
+        let lines = [
+            #"{"type":"user","message":{"role":"user","content":"just a prompt"}}"#,
+            "garbage",
+        ]
+        XCTAssertNil(TranscriptParser.lastAssistantModel(in: lines))
+    }
+
+    func test_lastAssistantModel_skips_modelless_trailing_turn() {
+        // A synthetic trailing assistant turn without a model shouldn't erase the real model.
+        let lines = [
+            #"{"type":"assistant","message":{"role":"assistant","model":"claude-opus-4-8","content":[{"type":"text","text":"working"}]}}"#,
+            #"{"type":"assistant","message":{"role":"assistant","content":[{"type":"tool_use","name":"Bash"}]}}"#,
+        ]
+        XCTAssertEqual(TranscriptParser.lastAssistantModel(in: lines), "claude-opus-4-8")
+    }
 }

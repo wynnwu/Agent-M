@@ -91,6 +91,18 @@ public enum TranscriptParser {
         return cues.contains { tail.contains($0) }
     }
 
+    /// The raw model id of the most recent assistant turn that carries one (e.g.
+    /// `claude-opus-4-8`). Scans from the end so a session that switched models reports its
+    /// current one; skips assistant turns with no `model` (synthetic / tool-only records).
+    public static func lastAssistantModel(in lines: [String]) -> String? {
+        for line in lines.reversed() {
+            guard let r = parseLine(line), r.role == .assistant,
+                  let m = r.model, !m.isEmpty else { continue }
+            return m
+        }
+        return nil
+    }
+
     /// The last meaningful git branch recorded in the transcript. Ignores detached "HEAD".
     public static func lastGitBranch(in lines: [String]) -> String? {
         for line in lines.reversed() {

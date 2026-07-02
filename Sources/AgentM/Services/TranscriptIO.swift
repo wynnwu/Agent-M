@@ -40,10 +40,11 @@ enum TranscriptIO {
     /// prompt can be much further back (after a big final exchange), so if it isn't in
     /// the first tail we escalate the read until it's found.
     static func tailInfo(atPath path: String, maxBytes: Int = 64_000)
-        -> (prompt: String?, branch: String?, asksQuestion: Bool) {
-        guard let lines = tailLines(path, maxBytes: maxBytes) else { return (nil, nil, false) }
+        -> (prompt: String?, branch: String?, asksQuestion: Bool, model: String?) {
+        guard let lines = tailLines(path, maxBytes: maxBytes) else { return (nil, nil, false, nil) }
         let branch = TranscriptParser.lastGitBranch(in: lines)
         let asks = TranscriptParser.lastAssistantAsksQuestion(in: lines)
+        let model = TranscriptParser.lastAssistantModel(in: lines)
         var prompt = TranscriptParser.lastUserPrompt(in: lines)
         if prompt == nil {
             for cap in [512_000, Int.max] {
@@ -52,6 +53,6 @@ enum TranscriptIO {
                 if cap == Int.max { break } // whole file already read; give up
             }
         }
-        return (prompt, branch, asks)
+        return (prompt, branch, asks, model)
     }
 }

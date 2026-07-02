@@ -19,6 +19,7 @@ struct PopoverRootView: View {
                 lastPrompts: service.lastPrompts,
                 lastActivity: service.lastActivity,
                 gitBranches: service.gitBranches,
+                models: service.models,
                 errorMessage: service.errorMessage,
                 onOpen: onOpen
             )

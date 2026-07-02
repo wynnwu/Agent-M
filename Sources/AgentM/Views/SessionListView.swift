@@ -6,15 +6,15 @@ struct SessionListView: View {
     let lastPrompts: [String: String]
     let lastActivity: [String: Date]
     var gitBranches: [String: String] = [:]
+    var models: [String: String] = [:]
     let errorMessage: String?
     let onOpen: (AgentSession) -> Void
     /// ScrollView doesn't render offscreen (ImageRenderer); snapshot mode renders flat.
     var scrollable: Bool = true
 
     private let columnWidth: CGFloat = 300
-    private let rowHeight: CGFloat = 104   // fits a two-line prompt + the branch pill
-    private let visibleRows = 5
-    private var listHeight: CGFloat { CGFloat(visibleRows) * rowHeight }
+    /// Viewport height: about 3.5 natural-height rows peek through before scrolling.
+    private let listHeight: CGFloat = 460
     private var totalWidth: CGFloat { columnWidth * 3 + 2 }
 
     var body: some View {
@@ -63,8 +63,11 @@ struct SessionListView: View {
                 OverlayScrollView { rows(items, bucket) }
                     .frame(height: listHeight)
             } else {
-                rows(Array(items.prefix(visibleRows)), bucket)
+                // Flat render (ImageRenderer): clip to the same viewport so snapshots match
+                // the live, scrollable panel — natural rows, ~3.5 peeking through.
+                rows(items, bucket)
                     .frame(height: listHeight, alignment: .top)
+                    .clipped()
             }
         }
         .frame(width: columnWidth, alignment: .leading)
@@ -78,8 +81,8 @@ struct SessionListView: View {
                                lastPrompt: lastPrompts[s.sessionId],
                                lastActivity: lastActivity[s.sessionId],
                                branch: gitBranches[s.sessionId],
+                               model: models[s.sessionId],
                                bucket: bucket) { onOpen(s) }
-                    .frame(height: rowHeight)
             }
         }
     }

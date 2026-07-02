@@ -11,6 +11,7 @@ enum SnapshotSupport {
             lastPrompts: samplePrompts,
             lastActivity: sampleActivity,
             gitBranches: sampleBranches,
+            models: sampleModels,
             errorMessage: nil,
             onOpen: { _ in },
             scrollable: false
@@ -31,6 +32,7 @@ enum SnapshotSupport {
     static let sampleSessions: [AgentSession] = [
         s("acme-web", "/Users/dev/Code/acme/acme-web", .interactive, status: .idle),
         s("design-system", "/Users/dev/Code/acme/design-system", .interactive, status: .idle),
+        s("cli-tools", "/Users/dev/Code/personal/cli-tools", .interactive, status: .idle),
         s("blog-engine", "/Users/dev/Code/personal/blog-engine", .interactive, status: .idle),
         s("infra", "/Users/dev/Code/acme/infra", .background, status: .idle, state: .done,
           name: "provision-staging-cluster"),
@@ -45,6 +47,7 @@ enum SnapshotSupport {
     static let samplePrompts: [String: String] = [
         "acme-web": "Refactor the checkout flow to use the new payment SDK.",
         "design-system": "Add dark-mode tokens to the Button and Card components.",
+        "cli-tools": "Add shell completion for the new subcommands.",
         "blog-engine": "Fix the RSS feed date formatting.",
         "billing-service": "Fix the invoice rounding bug in monthly statements.",
         "mobile-app": "Migrate the settings screen to the new navigation stack.",
@@ -62,14 +65,28 @@ enum SnapshotSupport {
             "mobile-app": now.addingTimeInterval(-3600),
             "acme-web": now.addingTimeInterval(-3 * 3600),
             "design-system": now.addingTimeInterval(-5 * 3600),
+            "cli-tools": now.addingTimeInterval(-6 * 3600),
             "blog-engine": now.addingTimeInterval(-2 * 86400),
             "infra": now.addingTimeInterval(-8 * 86400),
         ]
     }()
 
+    static let sampleModels: [String: String] = [
+        "acme-web": "claude-opus-4-8",
+        "design-system": "claude-sonnet-5",
+        "cli-tools": "claude-haiku-4-5",
+        "blog-engine": "claude-sonnet-5",
+        "billing-service": "claude-opus-4-8",
+        "mobile-app": "claude-sonnet-5",
+        "ml-pipeline": "claude-opus-4-8",
+        "data-warehouse": "claude-opus-4-8",
+        "api-gateway": "claude-sonnet-5",
+    ]
+
     static let sampleBranches: [String: String] = [
         "acme-web": "main",
         "design-system": "feat/dark-mode",
+        "cli-tools": "main",
         "blog-engine": "main",
         "billing-service": "fix/invoice-rounding",
         "mobile-app": "main",
@@ -144,18 +161,19 @@ enum SnapshotSupport {
         proc.waitUntilExit()
 
         let sessions = AgentSession.decodeArray(from: data)
-        var acts: [String: Date] = [:], prompts: [String: String] = [:], asks: [String: Bool] = [:], branches: [String: String] = [:]
+        var acts: [String: Date] = [:], prompts: [String: String] = [:], asks: [String: Bool] = [:], branches: [String: String] = [:], models: [String: String] = [:]
         for s in sessions {
             guard let tp = TranscriptIO.transcriptPath(forSessionID: s.sessionId) else { continue }
             if let m = TranscriptIO.lastModified(tp) { acts[s.sessionId] = m }
             let info = TranscriptIO.tailInfo(atPath: tp)
             if let pr = info.prompt { prompts[s.sessionId] = pr }
             if let b = info.branch { branches[s.sessionId] = b }
+            if let mdl = info.model { models[s.sessionId] = mdl }
             asks[s.sessionId] = info.asksQuestion
         }
         let groups = groupSessions(sessions, lastActivity: acts, asksQuestion: asks, now: Date())
         let view = SessionListView(groups: groups, lastPrompts: prompts, lastActivity: acts,
-                                   gitBranches: branches, errorMessage: nil, onOpen: { _ in }, scrollable: false)
+                                   gitBranches: branches, models: models, errorMessage: nil, onOpen: { _ in }, scrollable: false)
             .background(Color(red: 0.11, green: 0.11, blue: 0.12))
             .environment(\.colorScheme, .dark)
         write(view, to: path)
@@ -172,7 +190,7 @@ enum SnapshotSupport {
         let dropdown = VStack(spacing: 0) {
             SessionListView(groups: sampleGroups(), lastPrompts: samplePrompts,
                             lastActivity: sampleActivity, gitBranches: sampleBranches,
-                            errorMessage: nil, onOpen: { _ in }, scrollable: false)
+                            models: sampleModels, errorMessage: nil, onOpen: { _ in }, scrollable: false)
             Divider().opacity(0.4)
             HStack(spacing: 14) {
                 Image(systemName: "arrow.clockwise")
@@ -210,7 +228,7 @@ enum SnapshotSupport {
             dropdown
             Spacer(minLength: 40)
         }
-        .frame(width: 1120, height: 600)
+        .frame(width: 1120, height: 640)
         .environment(\.colorScheme, .dark)
         .background(
             LinearGradient(colors: [Color(red: 0.20, green: 0.23, blue: 0.30), Color(red: 0.12, green: 0.12, blue: 0.16)],

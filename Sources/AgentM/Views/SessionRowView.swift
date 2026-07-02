@@ -6,6 +6,7 @@ struct SessionRowView: View {
     let lastPrompt: String?
     let lastActivity: Date?
     let branch: String?
+    let model: String?
     let bucket: StatusBucket
     let onOpen: () -> Void
 
@@ -34,8 +35,6 @@ struct SessionRowView: View {
                     HStack(spacing: 6) {
                         Text(session.folder).font(.system(size: 16, weight: .semibold))
                             .lineLimit(1).layoutPriority(1)
-                        Text(session.parentPath).font(.system(size: 12)).foregroundStyle(.tertiary)
-                            .lineLimit(1).truncationMode(.middle)
                         Spacer(minLength: 4)
                         if let a = lastActivity {
                             Text(relativeTime(from: a, now: Date()))
@@ -43,11 +42,17 @@ struct SessionRowView: View {
                         }
                     }
                     Text(promptText).font(.system(size: 15)).foregroundStyle(.secondary).lineLimit(2)
+                    if let model {
+                        Text(model).font(.system(size: 12, design: .monospaced))
+                            .foregroundStyle(.tertiary).lineLimit(1).truncationMode(.middle)
+                    }
+                    Text(session.parentPath).font(.system(size: 12)).foregroundStyle(.tertiary)
+                        .lineLimit(1).truncationMode(.middle)
                     if let branch { BranchPill(name: branch) }
                 }
             }
             .padding(.horizontal, 14).padding(.vertical, 9)
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            .frame(maxWidth: .infinity, alignment: .topLeading)
             .background(hovering ? Color.white.opacity(0.06) : Color.clear)
             .contentShape(Rectangle())
         }
