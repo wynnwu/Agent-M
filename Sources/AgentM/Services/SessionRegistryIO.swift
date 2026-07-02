@@ -7,11 +7,16 @@ import AgentMCore
 enum SessionRegistryIO {
     static var sessionsDir: String { "\(NSHomeDirectory())/.claude/sessions" }
 
-    /// Finer status for a live interactive session, or nil if the file is absent, malformed,
-    /// or belongs to a different session (PID reuse).
-    static func status(forPID pid: Int, expectedSessionID id: String) -> String? {
+    /// Finer status + `statusUpdatedAt` for a live interactive session, or nil if the file is
+    /// absent, malformed, or belongs to a different session (PID reuse).
+    static func info(forPID pid: Int, expectedSessionID id: String) -> RegistryInfo? {
         let path = "\(sessionsDir)/\(pid).json"
         guard let data = try? Data(contentsOf: URL(fileURLWithPath: path)) else { return nil }
-        return registryStatus(fromJSON: data, expectedSessionID: id)
+        return registryInfo(fromJSON: data, expectedSessionID: id)
+    }
+
+    /// Finer status only (convenience over `info`).
+    static func status(forPID pid: Int, expectedSessionID id: String) -> String? {
+        info(forPID: pid, expectedSessionID: id)?.status
     }
 }

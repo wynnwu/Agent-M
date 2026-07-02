@@ -106,4 +106,47 @@ final class TranscriptParserTests: XCTestCase {
         ]
         XCTAssertEqual(TranscriptParser.lastAssistantModel(in: lines), "claude-opus-4-8")
     }
+
+    // MARK: - Turn timing (records-based; the detail window has parsed records with timestamps)
+
+    private func rec(_ role: TranscriptRecord.Role, at s: TimeInterval, stop: String? = nil,
+                     isToolResult: Bool = false, isMeta: Bool = false) -> TranscriptRecord {
+        TranscriptRecord(id: "\(role)-\(s)", role: role, text: "x", toolUses: [], isToolResult: isToolResult,
+                         isMeta: isMeta, timestamp: Date(timeIntervalSince1970: s), model: nil, stopReason: stop)
+    }
+
+    func test_lastCompletedTurnDuration_prompt_to_end_turn() {
+        // A turn spans the prompt through tool calls to the final end_turn.
+        let recs = [rec(.user, at: 100), rec(.assistant, at: 112, stop: "tool_use"), rec(.assistant, at: 130, stop: "end_turn")]
+        XCTAssertEqual(TranscriptParser.lastCompletedTurnDuration(records: recs), 30)
+    }
+
+    func test_lastCompletedTurnDuration_uses_latest_completed_turn() {
+        let recs = [rec(.user, at: 100), rec(.assistant, at: 130, stop: "end_turn"),
+                    rec(.user, at: 200), rec(.assistant, at: 230, stop: "end_turn")]
+        XCTAssertEqual(TranscriptParser.lastCompletedTurnDuration(records: recs), 30)
+    }
+
+    func test_lastCompletedTurnDuration_nil_without_end_turn() {
+        let recs = [rec(.user, at: 100), rec(.assistant, at: 112, stop: "tool_use")]
+        XCTAssertNil(TranscriptParser.lastCompletedTurnDuration(records: recs))
+    }
+
+    func test_currentTurnStart_in_progress_returns_prompt_time() {
+        // A completed turn, then a fresh prompt still being worked (no end_turn yet).
+        let recs = [rec(.user, at: 100), rec(.assistant, at: 130, stop: "end_turn"),
+                    rec(.user, at: 200), rec(.assistant, at: 205, stop: "tool_use")]
+        XCTAssertEqual(TranscriptParser.currentTurnStart(records: recs), Date(timeIntervalSince1970: 200))
+    }
+
+    func test_currentTurnStart_nil_when_last_turn_completed() {
+        let recs = [rec(.user, at: 100), rec(.assistant, at: 130, stop: "end_turn")]
+        XCTAssertNil(TranscriptParser.currentTurnStart(records: recs))
+    }
+
+    func test_currentTurnStart_ignores_tool_result_user_records() {
+        // The in-progress turn's start is the genuine prompt, not an intervening tool_result.
+        let recs = [rec(.user, at: 200), rec(.user, at: 205, isToolResult: true), rec(.assistant, at: 206, stop: "tool_use")]
+        XCTAssertEqual(TranscriptParser.currentTurnStart(records: recs), Date(timeIntervalSince1970: 200))
+    }
 }

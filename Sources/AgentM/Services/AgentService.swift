@@ -18,6 +18,9 @@ final class AgentService {
     private(set) var lastActivity: [String: Date] = [:]
     private(set) var gitBranches: [String: String] = [:]
     private(set) var models: [String: String] = [:]
+    /// sessionId → when the current status began (registry `statusUpdatedAt`). On a working
+    /// row, `now − turnStart` is how long the current turn has been running.
+    private(set) var turnStarts: [String: Date] = [:]
     var errorMessage: String?
 
     /// Set by the UI: poll fast while the user is looking at the popover.
@@ -74,16 +77,19 @@ final class AgentService {
                     (s.kind == .interactive) ? s.pid.map { (s.sessionId, $0) } : nil
                 })
             let cacheIn = self.infoCache
-            let io = await Task.detached { () -> (act: [String: Date], prompts: [String: String], branches: [String: String], asks: [String: Bool], models: [String: String], registry: [String: String], cache: [String: CachedInfo]) in
+            let io = await Task.detached { () -> (act: [String: Date], prompts: [String: String], branches: [String: String], asks: [String: Bool], models: [String: String], registry: [String: String], turnStarts: [String: Date], cache: [String: CachedInfo]) in
                 var act: [String: Date] = [:]
                 var prompts: [String: String] = [:]
                 var branches: [String: String] = [:]
                 var asks: [String: Bool] = [:]
                 var models: [String: String] = [:]
                 var registry: [String: String] = [:]
+                var turnStarts: [String: Date] = [:]
                 var cache = cacheIn
                 for (id, pid) in interactivePIDs {
-                    if let st = SessionRegistryIO.status(forPID: pid, expectedSessionID: id) { registry[id] = st }
+                    guard let info = SessionRegistryIO.info(forPID: pid, expectedSessionID: id) else { continue }
+                    registry[id] = info.status
+                    if let ms = info.statusUpdatedAt { turnStarts[id] = Date(timeIntervalSince1970: ms / 1000) }
                 }
                 for id in ids {
                     guard let path = TranscriptIO.transcriptPath(forSessionID: id) else { continue }
@@ -103,13 +109,14 @@ final class AgentService {
                     asks[id] = info.asks
                 }
                 cache = cache.filter { ids.contains($0.key) } // drop sessions that went away
-                return (act, prompts, branches, asks, models, registry, cache)
+                return (act, prompts, branches, asks, models, registry, turnStarts, cache)
             }.value
             self.infoCache = io.cache
             self.lastActivity = io.act
             self.lastPrompts = io.prompts
             self.gitBranches = io.branches
             self.models = io.models
+            self.turnStarts = io.turnStarts
             self.groups = groupSessions(sessions, lastActivity: io.act, asksQuestion: io.asks,
                                         registryStatus: io.registry, now: Date())
 

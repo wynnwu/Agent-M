@@ -20,6 +20,7 @@ struct PopoverRootView: View {
                 lastActivity: service.lastActivity,
                 gitBranches: service.gitBranches,
                 models: service.models,
+                turnStarts: service.turnStarts,
                 errorMessage: service.errorMessage,
                 onOpen: onOpen
             )

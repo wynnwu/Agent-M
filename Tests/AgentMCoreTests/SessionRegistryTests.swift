@@ -21,4 +21,23 @@ final class SessionRegistryTests: XCTestCase {
         XCTAssertNil(registryStatus(fromJSON: json(#"{"sessionId":"abc"}"#), expectedSessionID: "abc"))
         XCTAssertNil(registryStatus(fromJSON: json(#"{"sessionId":"abc","status":""}"#), expectedSessionID: "abc"))
     }
+
+    func test_registryInfo_parses_status_and_statusUpdatedAt() {
+        let d = json(#"{"sessionId":"abc","status":"busy","statusUpdatedAt":1783012428901}"#)
+        let info = registryInfo(fromJSON: d, expectedSessionID: "abc")
+        XCTAssertEqual(info?.status, "busy")
+        XCTAssertEqual(info?.statusUpdatedAt, 1783012428901)
+    }
+
+    func test_registryInfo_nil_statusUpdatedAt_when_absent() {
+        let d = json(#"{"sessionId":"abc","status":"idle"}"#)
+        let info = registryInfo(fromJSON: d, expectedSessionID: "abc")
+        XCTAssertEqual(info?.status, "idle")
+        XCTAssertNil(info?.statusUpdatedAt)
+    }
+
+    func test_registryInfo_nil_when_mismatch_or_no_status() {
+        XCTAssertNil(registryInfo(fromJSON: json(#"{"sessionId":"other","status":"busy","statusUpdatedAt":1}"#), expectedSessionID: "abc"))
+        XCTAssertNil(registryInfo(fromJSON: json(#"{"sessionId":"abc","status":""}"#), expectedSessionID: "abc"))
+    }
 }

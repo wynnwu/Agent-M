@@ -103,6 +103,35 @@ public enum TranscriptParser {
         return nil
     }
 
+    // MARK: - Turn timing
+
+    /// Duration of the most recently completed turn: from the prompt that started it to the
+    /// assistant's `end_turn` (spanning any tool calls). `nil` if no completed turn is present.
+    public static func lastCompletedTurnDuration(records: [TranscriptRecord]) -> TimeInterval? {
+        guard let end = records.lastIndex(where: {
+            $0.role == .assistant && $0.stopReason == "end_turn" && $0.timestamp != nil
+        }) else { return nil }
+        let endTS = records[end].timestamp!
+        // The genuine prompt that opened the turn — the last real user record before it.
+        for i in stride(from: end - 1, through: 0, by: -1) {
+            let r = records[i]
+            if r.role == .user, !r.isMeta, !r.isToolResult, let ts = r.timestamp {
+                return max(0, endTS.timeIntervalSince(ts))
+            }
+        }
+        return nil
+    }
+
+    /// Start of the in-progress turn — the last genuine prompt with no `end_turn` after it —
+    /// or `nil` when the last turn is already complete (nothing running).
+    public static func currentTurnStart(records: [TranscriptRecord]) -> Date? {
+        let lastEnd = records.lastIndex(where: { $0.role == .assistant && $0.stopReason == "end_turn" }) ?? -1
+        guard let prompt = records.lastIndex(where: {
+            $0.role == .user && !$0.isMeta && !$0.isToolResult && $0.timestamp != nil
+        }) else { return nil }
+        return prompt > lastEnd ? records[prompt].timestamp : nil
+    }
+
     /// The last meaningful git branch recorded in the transcript. Ignores detached "HEAD".
     public static func lastGitBranch(in lines: [String]) -> String? {
         for line in lines.reversed() {

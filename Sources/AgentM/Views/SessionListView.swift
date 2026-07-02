@@ -7,6 +7,7 @@ struct SessionListView: View {
     let lastActivity: [String: Date]
     var gitBranches: [String: String] = [:]
     var models: [String: String] = [:]
+    var turnStarts: [String: Date] = [:]
     let errorMessage: String?
     let onOpen: (AgentSession) -> Void
     /// ScrollView doesn't render offscreen (ImageRenderer); snapshot mode renders flat.
@@ -82,6 +83,7 @@ struct SessionListView: View {
                                lastActivity: lastActivity[s.sessionId],
                                branch: gitBranches[s.sessionId],
                                model: models[s.sessionId],
+                               turnStart: turnStarts[s.sessionId],
                                bucket: bucket) { onOpen(s) }
             }
         }

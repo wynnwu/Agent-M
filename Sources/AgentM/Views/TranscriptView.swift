@@ -70,6 +70,22 @@ struct TranscriptWindowBody: View {
         return parts.joined(separator: "  ·  ")
     }
 
+    private var currentTurnStart: Date? { TranscriptParser.currentTurnStart(records: records) }
+    private var lastTurnDuration: TimeInterval? { TranscriptParser.lastCompletedTurnDuration(records: records) }
+
+    /// How long the current turn is taking (live) or how long the last one took.
+    @ViewBuilder private var turnTiming: some View {
+        if let start = currentTurnStart {
+            TimelineView(.periodic(from: .now, by: 1)) { ctx in
+                Label("current turn " + turnElapsed(ctx.date.timeIntervalSince(start)), systemImage: "timer")
+                    .font(.system(size: 13)).foregroundStyle(Theme.tint(.working)).monospacedDigit()
+            }
+        } else if let d = lastTurnDuration {
+            Label("last turn " + turnElapsed(d), systemImage: "timer")
+                .font(.system(size: 13)).foregroundStyle(.tertiary).monospacedDigit()
+        }
+    }
+
     var body: some View {
         VStack(spacing: 0) {
             VStack(alignment: .leading, spacing: 8) {
@@ -79,6 +95,7 @@ struct TranscriptWindowBody: View {
                         Text(target.parent).font(.system(size: 13)).foregroundStyle(.secondary).lineLimit(1)
                         Text(metaLine).font(.system(size: 14)).foregroundStyle(.tertiary)
                             .lineLimit(1).truncationMode(.tail).textSelection(.enabled)
+                        turnTiming
                     }
                     Spacer(minLength: 8)
                     if let b = target.branch { BranchPill(name: b) }

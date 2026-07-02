@@ -7,3 +7,11 @@ public func relativeTime(from date: Date, now: Date) -> String {
     if s < 86400 { return "\(Int(s / 3600))h" }
     return "\(Int(s / 86400))d"
 }
+
+/// A running stopwatch: how long a turn is taking / took. `45s`, `1m 20s`, `1h 05m`.
+public func turnElapsed(_ seconds: TimeInterval) -> String {
+    let t = Int(max(0, seconds))
+    if t < 60 { return "\(t)s" }
+    if t < 3600 { return "\(t / 60)m \(String(format: "%02d", t % 60))s" }
+    return "\(t / 3600)h \(String(format: "%02d", (t % 3600) / 60))m"
+}

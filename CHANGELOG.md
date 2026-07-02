@@ -4,6 +4,17 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.5] - 2026-07-03
+
+### Added
+- A **live turn timer**. Interactive sessions in the **Working** column now show a
+  once-per-second ticking elapsed (`⏱ 1m 20s`) of how long the current turn has been
+  running, from the per-PID registry's `statusUpdatedAt`. It replaces the uninformative
+  "now" on active rows; background jobs (no per-turn timing) keep the relative time.
+- The **transcript window** header shows the same live elapsed while a turn is running, and
+  `last turn 13s` once the session hands back — derived from the transcript's own timestamps
+  (last `end_turn` minus the prompt that started it).
+
 ## [0.1.4] - 2026-07-03
 
 ### Added
@@ -77,6 +88,7 @@ First release.
 - `AgentMCore` library (models, JSONL parser, status grouping, formatting) with unit tests.
 - `scripts/make-app.sh` to package a double-clickable, menu-bar-only `.app`.
 
+[0.1.5]: https://github.com/wynnwu/agent-m/releases/tag/v0.1.5
 [0.1.4]: https://github.com/wynnwu/agent-m/releases/tag/v0.1.4
 [0.1.3]: https://github.com/wynnwu/agent-m/releases/tag/v0.1.3
 [0.1.2]: https://github.com/wynnwu/agent-m/releases/tag/v0.1.2

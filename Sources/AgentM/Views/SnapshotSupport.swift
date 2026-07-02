@@ -12,6 +12,7 @@ enum SnapshotSupport {
             lastActivity: sampleActivity,
             gitBranches: sampleBranches,
             models: sampleModels,
+            turnStarts: sampleTurnStarts,
             errorMessage: nil,
             onOpen: { _ in },
             scrollable: false
@@ -83,6 +84,15 @@ enum SnapshotSupport {
         "api-gateway": "claude-sonnet-5",
     ]
 
+    // Working sessions' current-turn start times, so snapshots show the live turn timer.
+    static let sampleTurnStarts: [String: Date] = {
+        let now = Date()
+        return [
+            "ml-pipeline": now.addingTimeInterval(-80),     // 1m 20s
+            "data-warehouse": now.addingTimeInterval(-567), // 9m 27s
+        ]
+    }()
+
     static let sampleBranches: [String: String] = [
         "acme-web": "main",
         "design-system": "feat/dark-mode",
@@ -104,17 +114,18 @@ enum SnapshotSupport {
 
     // MARK: - Transcript snapshot (fictional conversation)
 
+    private static func ts(_ offset: TimeInterval) -> Date { Date(timeIntervalSince1970: 1_780_000_000 + offset) }
     static let sampleRecords: [TranscriptRecord] = [
         .init(id: "1", role: .user, text: "Refactor the checkout flow to use the new payment SDK.",
-              toolUses: [], isToolResult: false, isMeta: false, timestamp: nil),
+              toolUses: [], isToolResult: false, isMeta: false, timestamp: ts(0)),
         .init(id: "2", role: .assistant, text: "On it — replacing the legacy PaymentGateway with the new SDK and updating the call sites.",
-              toolUses: ["Bash"], isToolResult: false, isMeta: false, timestamp: nil),
+              toolUses: ["Bash"], isToolResult: false, isMeta: false, timestamp: ts(2)),
         .init(id: "3", role: .assistant, text: "Swapped the gateway, migrated 6 call sites, and the unit tests pass.",
-              toolUses: [], isToolResult: false, isMeta: false, timestamp: nil),
+              toolUses: [], isToolResult: false, isMeta: false, timestamp: ts(15)),
         .init(id: "4", role: .user, text: "Make sure we handle the declined-card case gracefully.",
-              toolUses: [], isToolResult: false, isMeta: false, timestamp: nil),
+              toolUses: [], isToolResult: false, isMeta: false, timestamp: ts(40)),
         .init(id: "5", role: .assistant, text: "Done — added a typed DeclinedCard error with a retry prompt. Want me to add a Sentry breadcrumb for it too?",
-              toolUses: ["Edit"], isToolResult: false, isMeta: false, timestamp: nil, model: "claude-opus-4-8"),
+              toolUses: ["Edit"], isToolResult: false, isMeta: false, timestamp: ts(53), model: "claude-opus-4-8", stopReason: "end_turn"),
     ]
 
     static func renderTranscript(to path: String) {
@@ -161,8 +172,11 @@ enum SnapshotSupport {
         proc.waitUntilExit()
 
         let sessions = AgentSession.decodeArray(from: data)
-        var acts: [String: Date] = [:], prompts: [String: String] = [:], asks: [String: Bool] = [:], branches: [String: String] = [:], models: [String: String] = [:]
+        var acts: [String: Date] = [:], prompts: [String: String] = [:], asks: [String: Bool] = [:], branches: [String: String] = [:], models: [String: String] = [:], turnStarts: [String: Date] = [:]
         for s in sessions {
+            if s.kind == .interactive, let pid = s.pid,
+               let info = SessionRegistryIO.info(forPID: pid, expectedSessionID: s.sessionId),
+               let ms = info.statusUpdatedAt { turnStarts[s.sessionId] = Date(timeIntervalSince1970: ms / 1000) }
             guard let tp = TranscriptIO.transcriptPath(forSessionID: s.sessionId) else { continue }
             if let m = TranscriptIO.lastModified(tp) { acts[s.sessionId] = m }
             let info = TranscriptIO.tailInfo(atPath: tp)
@@ -173,7 +187,8 @@ enum SnapshotSupport {
         }
         let groups = groupSessions(sessions, lastActivity: acts, asksQuestion: asks, now: Date())
         let view = SessionListView(groups: groups, lastPrompts: prompts, lastActivity: acts,
-                                   gitBranches: branches, models: models, errorMessage: nil, onOpen: { _ in }, scrollable: false)
+                                   gitBranches: branches, models: models, turnStarts: turnStarts,
+                                   errorMessage: nil, onOpen: { _ in }, scrollable: false)
             .background(Color(red: 0.11, green: 0.11, blue: 0.12))
             .environment(\.colorScheme, .dark)
         write(view, to: path)
@@ -190,7 +205,8 @@ enum SnapshotSupport {
         let dropdown = VStack(spacing: 0) {
             SessionListView(groups: sampleGroups(), lastPrompts: samplePrompts,
                             lastActivity: sampleActivity, gitBranches: sampleBranches,
-                            models: sampleModels, errorMessage: nil, onOpen: { _ in }, scrollable: false)
+                            models: sampleModels, turnStarts: sampleTurnStarts,
+                            errorMessage: nil, onOpen: { _ in }, scrollable: false)
             Divider().opacity(0.4)
             HStack(spacing: 14) {
                 Image(systemName: "arrow.clockwise")

@@ -7,6 +7,7 @@ struct SessionRowView: View {
     let lastActivity: Date?
     let branch: String?
     let model: String?
+    let turnStart: Date?
     let bucket: StatusBucket
     let onOpen: () -> Void
 
@@ -36,7 +37,14 @@ struct SessionRowView: View {
                         Text(session.folder).font(.system(size: 16, weight: .semibold))
                             .lineLimit(1).layoutPriority(1)
                         Spacer(minLength: 4)
-                        if let a = lastActivity {
+                        if isWorking, let turnStart {
+                            // How long the current turn has been running — ticks once a second.
+                            TimelineView(.periodic(from: .now, by: 1)) { ctx in
+                                Label(turnElapsed(ctx.date.timeIntervalSince(turnStart)), systemImage: "timer")
+                                    .labelStyle(.titleAndIcon)
+                                    .font(.system(size: 13)).foregroundStyle(Theme.tint(.working)).monospacedDigit()
+                            }
+                        } else if let a = lastActivity {
                             Text(relativeTime(from: a, now: Date()))
                                 .font(.system(size: 13)).foregroundStyle(.tertiary).monospacedDigit()
                         }
