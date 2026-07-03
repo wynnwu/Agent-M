@@ -6,11 +6,12 @@ import AgentMCore
 struct PopoverRootView: View {
     let service: AgentService
     let prefs: HotKeyPreferences
-    let onOpen: (AgentSession) -> Void
+    let onJump: (AgentSession) -> Void
+    let onTranscript: (AgentSession) -> Void
     let onSettings: () -> Void
     let onQuit: () -> Void
 
-    private let width: CGFloat = 300 * 3 + 2
+    private let width: CGFloat = 360 * 3 + 2
 
     var body: some View {
         VStack(spacing: 0) {
@@ -22,7 +23,8 @@ struct PopoverRootView: View {
                 models: service.models,
                 turnStarts: service.turnStarts,
                 errorMessage: service.errorMessage,
-                onOpen: onOpen
+                onJump: onJump,
+                onTranscript: onTranscript
             )
             Divider().opacity(0.4)
             HStack(spacing: 14) {

@@ -9,11 +9,12 @@ struct SessionListView: View {
     var models: [String: String] = [:]
     var turnStarts: [String: Date] = [:]
     let errorMessage: String?
-    let onOpen: (AgentSession) -> Void
+    let onJump: (AgentSession) -> Void
+    var onTranscript: (AgentSession) -> Void = { _ in }
     /// ScrollView doesn't render offscreen (ImageRenderer); snapshot mode renders flat.
     var scrollable: Bool = true
 
-    private let columnWidth: CGFloat = 300
+    private let columnWidth: CGFloat = 360
     /// Viewport height: about 3.5 natural-height rows peek through before scrolling.
     private let listHeight: CGFloat = 460
     private var totalWidth: CGFloat { columnWidth * 3 + 2 }
@@ -50,8 +51,8 @@ struct SessionListView: View {
     private func column(_ title: String, _ items: [AgentSession], _ bucket: StatusBucket) -> some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack(spacing: 6) {
-                Text(title.uppercased()).font(.system(size: 13, weight: .semibold)).foregroundStyle(Theme.tint(bucket))
-                Text("\(items.count)").font(.system(size: 13)).foregroundStyle(.tertiary)
+                Text(title.uppercased()).font(.system(size: 15, weight: .semibold)).foregroundStyle(Theme.tint(bucket))
+                Text("\(items.count)").font(.system(size: 14)).foregroundStyle(.tertiary)
             }
             .padding(.horizontal, 14).padding(.top, 12).padding(.bottom, 5)
 
@@ -61,7 +62,10 @@ struct SessionListView: View {
                     .frame(maxWidth: .infinity, alignment: .center)
                     .frame(height: listHeight)
             } else if scrollable {
-                OverlayScrollView { rows(items, bucket) }
+                // Native SwiftUI ScrollView: multiple sibling NSScrollViews (the old custom
+                // OverlayScrollView) only delivered hover to the first column — SwiftUI's own
+                // scroll view handles hover per-row with no such routing bug.
+                ScrollView(.vertical) { rows(items, bucket) }
                     .frame(height: listHeight)
             } else {
                 // Flat render (ImageRenderer): clip to the same viewport so snapshots match
@@ -84,7 +88,9 @@ struct SessionListView: View {
                                branch: gitBranches[s.sessionId],
                                model: models[s.sessionId],
                                turnStart: turnStarts[s.sessionId],
-                               bucket: bucket) { onOpen(s) }
+                               bucket: bucket,
+                               onJump: { onJump(s) },
+                               onTranscript: { onTranscript(s) })
             }
         }
     }

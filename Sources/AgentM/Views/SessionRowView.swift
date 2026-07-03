@@ -1,4 +1,5 @@
 import SwiftUI
+import AppKit
 import AgentMCore
 
 struct SessionRowView: View {
@@ -9,10 +10,12 @@ struct SessionRowView: View {
     let model: String?
     let turnStart: Date?
     let bucket: StatusBucket
-    let onOpen: () -> Void
+    let onJump: () -> Void
+    let onTranscript: () -> Void
 
     @State private var hovering = false
     @State private var pulse = false
+    @State private var pillHover = false
 
     private var isWorking: Bool { bucket == .working }
     private var promptText: String {
@@ -21,7 +24,7 @@ struct SessionRowView: View {
     }
 
     var body: some View {
-        Button(action: onOpen) {
+        Button(action: { NSApp.currentEvent?.modifierFlags.contains(.command) == true ? onTranscript() : onJump() }) {
             HStack(alignment: .top, spacing: 10) {
                 Circle()
                     .fill(Theme.dot(bucket: bucket, session: session))
@@ -61,10 +64,47 @@ struct SessionRowView: View {
             }
             .padding(.horizontal, 14).padding(.vertical, 9)
             .frame(maxWidth: .infinity, alignment: .topLeading)
-            .background(hovering ? Color.white.opacity(0.06) : Color.clear)
+            .background(
+                RoundedRectangle(cornerRadius: 10)
+                    .fill(RadialGradient(
+                        colors: [Color.orange.opacity(hovering ? 0.15 : 0), Color.orange.opacity(0)],
+                        center: UnitPoint(x: -0.05, y: -0.1),   // light spills in from just off the top-left
+                        startRadius: 0, endRadius: 380))
+                    .padding(.horizontal, 6).padding(.vertical, 3)
+                    .animation(.easeOut(duration: 0.15), value: hovering)
+            )
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .pointerOnHover()
+        .help("Click to jump to the terminal tab · ⌘-click (or the bubble) for the transcript")
+        // Transcript affordance, overlaid on top so its clicks don't fall through to the row.
+        .overlay(alignment: .bottomTrailing) {
+            Button(action: onTranscript) {
+                Image(systemName: "text.bubble")
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundStyle(Color.white.opacity(pillHover ? 0.95 : 0.6))
+                    .padding(.horizontal, 8).padding(.vertical, 5)
+                    .background(Color.white.opacity(pillHover ? 0.18 : 0.09),
+                                in: RoundedRectangle(cornerRadius: 8))
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .onHover { pillHover = $0 }
+            .pointerOnHover()
+            .padding(.horizontal, 10).padding(.vertical, 8)
+            .help("Open transcript")
+        }
         .onHover { hovering = $0 }
+    }
+}
+
+private extension View {
+    /// Show the pointer (link) cursor while hovered — the web convention for "clickable".
+    /// `.set()` on every continuous-hover tick reliably wins over the system's cursor resets.
+    func pointerOnHover() -> some View {
+        onContinuousHover { phase in
+            if case .active = phase { NSCursor.pointingHand.set() } else { NSCursor.arrow.set() }
+        }
     }
 }

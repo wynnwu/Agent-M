@@ -4,6 +4,28 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.6] - 2026-07-03
+
+### Added
+- **Jump to a session's terminal tab.** Click any row to bring the exact terminal tab the
+  agent is running in to the front — **Warp** (via its `warp://session` focus URL) and
+  **Apple Terminal** (via AppleScript, matched by tty). The terminal is read from the
+  session's own environment; no hooks, no setup, and it never writes to `~/.claude/`.
+  ⌘-click a row — or click the new transcript bubble at its bottom-right — to open the
+  in-app transcript instead.
+
+### Changed
+- The dropdown is **~20% wider**, so more of each prompt and directory path is visible.
+- The **column headings** (Idle / Waiting for you / Working) are larger.
+- **Hovering a row** now shows the pointer (link) cursor and a subtle orange glow that
+  spills in from the top-left, matching the row's new click-to-jump behavior.
+
+### Fixed
+- Row hover (cursor + highlight) now works in **every** column, not just the leftmost. The
+  columns used a custom `NSScrollView`; with several side by side, only the first received
+  mouse tracking. Replaced it with a native SwiftUI scroll view. (Scroll bars now follow
+  your macOS "Show scroll bars" setting.)
+
 ## [0.1.5] - 2026-07-03
 
 ### Added
@@ -88,6 +110,7 @@ First release.
 - `AgentMCore` library (models, JSONL parser, status grouping, formatting) with unit tests.
 - `scripts/make-app.sh` to package a double-clickable, menu-bar-only `.app`.
 
+[0.1.6]: https://github.com/wynnwu/agent-m/releases/tag/v0.1.6
 [0.1.5]: https://github.com/wynnwu/agent-m/releases/tag/v0.1.5
 [0.1.4]: https://github.com/wynnwu/agent-m/releases/tag/v0.1.4
 [0.1.3]: https://github.com/wynnwu/agent-m/releases/tag/v0.1.3

@@ -35,7 +35,7 @@ A dropdown that emerges from behind the menu bar, centered at the top of the scr
 
 Each row shows the **folder**, the **last prompt**, the **model** it's running, the **directory** and **git branch**, a **status dot**, and the **relative last-active time** (or, while working, the live turn timer). Each column shows a few rows before scrolling, and empty columns stay visible. The menu-bar icon carries a badge of how many agents are active.
 
-Click any row to open its **transcript window** — a dark, readable view of the conversation that follows new turns live, flags when a session is waiting for your reply, shows how long the current turn is taking (or how long the last one took), and can filter to just your prompts or just the responses.
+**Click a row to jump straight to that session's live terminal tab** — it focuses the exact **Warp** or **Apple Terminal** tab the agent is running in (no setup; it reads the terminal from the session's own environment, and never writes anything). **⌘-click, or the transcript bubble at the row's bottom-right, opens the in-app transcript window** instead — a dark, readable view of the conversation that follows new turns live, flags when a session is waiting for your reply, shows how long the current turn is taking (or how long the last one took), and can filter to just your prompts or just the responses.
 
 <p align="center">
   <img src="docs/images/transcript.png" width="380" alt="Transcript window">

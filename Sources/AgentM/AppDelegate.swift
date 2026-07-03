@@ -43,11 +43,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         let hosting = NSHostingView(rootView: PopoverRootView(
             service: service,
             prefs: prefs,
-            onOpen: { [weak self] session in self?.openTranscript(for: session) },
+            onJump: { [weak self] session in self?.jumpToTerminal(for: session) },
+            onTranscript: { [weak self] session in self?.openTranscript(for: session) },
             onSettings: { [weak self] in self?.openSettings() },
             onQuit: { NSApp.terminate(nil) }
         ))
-        let panel = DropdownPanel(contentRect: NSRect(x: 0, y: 0, width: 902, height: 420),
+        let panel = DropdownPanel(contentRect: NSRect(x: 0, y: 0, width: 1082, height: 420),
                                   styleMask: [.borderless, .nonactivatingPanel],
                                   backing: .buffered, defer: false)
         panel.isFloatingPanel = true
@@ -104,7 +105,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         guard let panel, let hosting, let shadowHost, let glass else { return }
         hosting.layoutSubtreeIfNeeded()
         var content = hosting.fittingSize
-        if content.width < 100 || content.height < 100 { content = NSSize(width: 902, height: 420) } // fallback
+        if content.width < 100 || content.height < 100 { content = NSSize(width: 1082, height: 420) } // fallback
         guard let screen = NSScreen.main ?? NSScreen.screens.first else { return }
         let m = panelMargin
         let winW = content.width + 2 * m
@@ -196,6 +197,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     }
 
     // MARK: - Transcript windows
+
+    /// Plain row click: focus the terminal tab running this session (Warp / Apple Terminal).
+    /// Falls back to opening the in-app transcript when the tab can't be resolved.
+    func jumpToTerminal(for session: AgentSession) {
+        guard let pid = session.pid else { openTranscript(for: session); return }
+        closePopover()
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            let jumped = TerminalJumpIO.jump(pid: pid)
+            if !jumped {
+                DispatchQueue.main.async { self?.openTranscript(for: session) }
+            }
+        }
+    }
 
     func openTranscript(for session: AgentSession) {
         closePopover()

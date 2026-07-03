@@ -14,7 +14,7 @@ enum SnapshotSupport {
             models: sampleModels,
             turnStarts: sampleTurnStarts,
             errorMessage: nil,
-            onOpen: { _ in },
+            onJump: { _ in }, onTranscript: { _ in },
             scrollable: false
         )
         .background(Color(red: 0.11, green: 0.11, blue: 0.12))
@@ -188,7 +188,7 @@ enum SnapshotSupport {
         let groups = groupSessions(sessions, lastActivity: acts, asksQuestion: asks, now: Date())
         let view = SessionListView(groups: groups, lastPrompts: prompts, lastActivity: acts,
                                    gitBranches: branches, models: models, turnStarts: turnStarts,
-                                   errorMessage: nil, onOpen: { _ in }, scrollable: false)
+                                   errorMessage: nil, onJump: { _ in }, onTranscript: { _ in }, scrollable: false)
             .background(Color(red: 0.11, green: 0.11, blue: 0.12))
             .environment(\.colorScheme, .dark)
         write(view, to: path)
@@ -206,7 +206,7 @@ enum SnapshotSupport {
             SessionListView(groups: sampleGroups(), lastPrompts: samplePrompts,
                             lastActivity: sampleActivity, gitBranches: sampleBranches,
                             models: sampleModels, turnStarts: sampleTurnStarts,
-                            errorMessage: nil, onOpen: { _ in }, scrollable: false)
+                            errorMessage: nil, onJump: { _ in }, onTranscript: { _ in }, scrollable: false)
             Divider().opacity(0.4)
             HStack(spacing: 14) {
                 Image(systemName: "arrow.clockwise")
@@ -218,7 +218,7 @@ enum SnapshotSupport {
             .font(.system(size: 13)).foregroundStyle(.secondary)
             .padding(.horizontal, 16).padding(.vertical, 10)
         }
-        .frame(width: 902)
+        .frame(width: 1082)
         .environment(\.colorScheme, .dark)
         .background(Color(red: 0.11, green: 0.11, blue: 0.12))
         .overlay(alignment: .top) {
@@ -244,7 +244,7 @@ enum SnapshotSupport {
             dropdown
             Spacer(minLength: 40)
         }
-        .frame(width: 1120, height: 640)
+        .frame(width: 1344, height: 640)
         .environment(\.colorScheme, .dark)
         .background(
             LinearGradient(colors: [Color(red: 0.20, green: 0.23, blue: 0.30), Color(red: 0.12, green: 0.12, blue: 0.16)],
