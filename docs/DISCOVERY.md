@@ -15,6 +15,7 @@ Verified on macOS (Darwin 24.6), Claude Code `2.1.x` (versions `2.1.158` and `2.
 | Live list of running sessions + idle/busy status | `claude agents --json [--all]` | Supported (built for scripting) |
 | Full conversation content of a session | `~/.claude/projects/<slug>/<sessionId>.jsonl` | Internal format, version-dependent |
 | Sub-agent / workflow activity | `…/<sessionId>/subagents/workflows/<wf_id>/*.jsonl` | Internal format |
+| Which terminal a session runs in + focus its exact tab | the agent pid's **environment** via `ps eww` (`WARP_FOCUS_URL`, `TERM_PROGRAM`, tty) — see §6 | Env readable (supported); Warp focus URL undocumented |
 
 There is **no live event/IPC API** to subscribe to another session's messages. You **poll** the CLI for status and **watch the transcript file** (FSEvents) for content. The Anthropic API itself is stateless and stores nothing server-side — these are purely local artifacts.
 
@@ -94,6 +95,12 @@ a trailing `?` or a hand-off sign-off ("let me know", "want me to…", "I'll wai
 `end_turn` gate is what makes this safe to trust over a stale `busy`: a session that's genuinely
 mid-work stopped for a tool (`stop_reason == "tool_use"`) or hasn't finished, so it never matches.
 
+**Turn timing.** `statusUpdatedAt` (epoch **ms**) is when the status last changed, so while a session
+is `busy`, `now − statusUpdatedAt` is **how long the current turn has been running** — Agent M renders
+this as a live ticking timer on the Working column. How long a *completed* turn took comes from the
+transcript instead: the last assistant `end_turn` record's `timestamp` minus the timestamp of the
+prompt that started it (see §2).
+
 ---
 
 ## 2. Full conversation — the transcript JSONL
@@ -144,6 +151,8 @@ Observed `type` values:
 | `ai-title` | The generated session title/slug. |
 
 For rendering a conversation, the load-bearing records are `type: "user"` and `type: "assistant"`; their `message` field is the chat content. Tool calls appear as `tool_use` blocks inside assistant messages; tool results arrive as `toolUseResult` / subsequent user records. Records form a tree via `uuid` / `parentUuid` (note `isSidechain` flags sub-agent branches).
+
+Two fields worth surfacing: each record carries a `timestamp` (ISO-8601) — the gap between a prompt and the assistant's `end_turn` is that turn's wall-clock duration (§1, *Turn timing*) — and each assistant `message` carries `model` (e.g. `claude-opus-4-8`), the model that turn ran on.
 
 ### Following it live
 
@@ -199,6 +208,40 @@ Same JSONL conventions. Useful later for a "drill into what the sub-agents are d
 - **Privacy / scope** — transcripts contain full conversation content (and possibly secrets pasted into sessions). This is a *local, personal* tool reading the current user's own files. Don't transmit transcript content anywhere.
 - **Sandboxing** — reading `~/.claude/` (outside an App Sandbox container) and spawning a process means a Mac App Store sandbox is impractical. Ship un-sandboxed, Developer ID–signed, for personal use. See CLAUDE.md §Sandboxing.
 - **Multiple installed versions** — `--bg-spare`/`--bg-pty-host` helper processes and a `claude daemon run` process also show up in `ps`; ignore those. Use `claude agents --json` as the source of truth for "sessions," not raw `ps`.
+
+---
+
+## 6. Terminal identification & jump
+
+Given a session's **pid** (from `claude agents --json` / the registry), you can find **which terminal app hosts it** and **focus the exact tab** it runs in. This is *navigation only* — read-only, no hooks, and it never writes to `~/.claude/`.
+
+### Reading the agent's environment
+
+The focus token lives in the agent process's **environment**, and a same-user process can read it:
+
+```bash
+ps eww -p <pid>       # the process's full environment (KERN_PROCARGS2 under the hood)
+ps -o tty= -p <pid>   # its controlling tty, e.g. ttys009
+```
+
+macOS only strips env from `ps`/`sysctl` for **code-sign-"restricted"** processes (many Apple daemons); the `claude` CLI isn't restricted, so its env is readable **without root** (the gate is in XNU `sysctl_procargsx`). The env is a snapshot from **exec time** — fine here, since the terminal vars are set at launch. If a session's env is ever unreadable, walk the process tree (`ps -o ppid=`) up to the ancestor terminal app to at least identify it.
+
+### Env vars that matter
+
+| Terminal | Identify by | Focus token |
+|----------|-------------|-------------|
+| **Warp** | `TERM_PROGRAM=WarpTerminal`, `__CFBundleIdentifier=dev.warp.Warp-Stable` | `WARP_FOCUS_URL=warp://session/<uuid>` (also `WARP_TERMINAL_SESSION_UUID`) |
+| **Apple Terminal** | `TERM_PROGRAM=Apple_Terminal` | the controlling **tty** (`ps -o tty=`); also `TERM_SESSION_ID` |
+| iTerm2 | `TERM_PROGRAM=iTerm.app` | `ITERM_SESSION_ID` |
+| kitty / WezTerm | — | `KITTY_WINDOW_ID` / `WEZTERM_PANE` |
+
+### Focusing the exact tab
+
+- **Warp**: `open "$WARP_FOCUS_URL"` (i.e. `open warp://session/<uuid>`). ⚠️ **Undocumented** (Warp issue #8611) and **version-dependent** — it ships in recent Warp builds but isn't in the public URI docs, so guard for `WARP_FOCUS_URL` being absent and degrade gracefully.
+- **Apple Terminal**: AppleScript — find the tab whose `tty of tab` equals `/dev/<tty>`, then `set selected of that tab to true` + `set frontmost of its window to true` + `activate`; run via `osascript`.
+- There is **no terminal-agnostic** way to focus a specific tab — each terminal needs its own mechanism. iTerm2 (`open "iterm2:///reveal?sessionid=$ITERM_SESSION_ID"`) and kitty/WezTerm (their remote-control CLIs) are straightforward future additions.
+
+Implemented in `AgentMCore/TerminalJump` (pure: env parsing, target resolution, the AppleScript string) and `AgentM/Services/TerminalJumpIO` (runs `ps`, `open`, `osascript`).
 
 ---
 

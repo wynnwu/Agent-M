@@ -4,10 +4,10 @@ Context for Claude Code working in this repo. Read `docs/DISCOVERY.md` first —
 
 ## What we're building
 
-A small **native macOS menu-bar app** that shows which Claude Code sessions are running on this Mac, their live idle/busy status, and lets you open any session's conversation in a detail window. A local, personal observability tool — no network, no telemetry.
+A small **native macOS menu-bar app** that shows which Claude Code sessions are running on this Mac, their live idle/busy status, lets you jump to the terminal tab a session runs in, and opens any session's conversation in a detail window. A local, personal observability tool — no network, no telemetry.
 
 Form factor: **menu-bar + detail window**.
-- **Menu-bar (`MenuBarExtra`)**: status-bar icon with a badge (count of busy/working agents). Click → popover with a glanceable list of sessions (status dot, name, cwd, kind). Each row has "Open".
+- **Menu-bar (`MenuBarExtra`)**: status-bar icon with a badge (count of busy/working agents). Click → popover with a glanceable list of sessions (status dot, name, cwd, kind). A plain row click **jumps to that session's terminal tab**; ⌘-click, or the transcript pill at the row's bottom-right, opens the detail window.
 - **Detail window**: a transcript viewer for the selected session — renders the user/assistant turns and follows new ones live.
 
 ## Tech stack & key decisions
@@ -20,6 +20,7 @@ Form factor: **menu-bar + detail window**.
 | Dependencies | **none** (Apple frameworks only) | It's a small tool; keep it dependency-free. |
 | Data: status | spawn `claude agents --json --all` on a `Timer` (~2s) | Supported, TTY-free scripting surface. |
 | Data: content | glob `~/.claude/projects/*/<sessionId>.jsonl`, then watch with `DispatchSource` | Robust path resolution; append-only incremental reads. |
+| Data: terminal | read the agent pid's env via `ps eww` (`WARP_FOCUS_URL` / `TERM_PROGRAM` / tty) | Identify + focus the exact tab; no hooks, read-only. See DISCOVERY §6. |
 
 Do **not** add networking, analytics, or third-party packages without being asked. Do **not** reconstruct the project-dir slug — always glob by `sessionId` (see DISCOVERY §2).
 
@@ -31,7 +32,8 @@ AgentMApp (@main, Settings-only scene)
     ├── NSStatusItem + DropdownPanel → PopoverRootView → SessionListView (3 columns)
     │     (borderless NSPanel centered at top of screen, flush under the menu bar)
     ├── GlobalHotKey (optional, opt-in via Settings) toggles the panel; Esc closes it
-    └── NSWindow per session         → TranscriptView (detail window)
+    ├── TerminalJumpIO               ← plain row click focuses the session's terminal tab
+    └── NSWindow per session         → TranscriptView (detail window; ⌘-click / transcript pill)
 
 (MenuBarExtra was the original plan, but it offers no API to open the popover
 programmatically — needed for the global hotkey — nor to position/center it. So the
@@ -41,8 +43,10 @@ via click-outside / Esc / icon toggle. SwiftUI still renders all the content.)
 Model layer (@Observable, no UI):
 ├── AgentService      polls `claude agents --json --all`, publishes grouped [AgentSession]
 ├── ClaudeCLI         locates the binary, runs it, decodes JSON (Codable)
+├── SessionRegistry   parses `~/.claude/sessions/<pid>.json` (finer status + statusUpdatedAt)
 ├── TranscriptStore   resolves + reads (last ~12 turns) + watches one session's .jsonl
 ├── TranscriptParser  JSONL line → TranscriptRecord (defensive, tolerant of unknown types)
+├── TerminalJump      resolves a session's terminal from its env + focuses its tab (Warp / Terminal.app)
 └── GlobalHotKey      Carbon RegisterEventHotKey wrapper (dependency-free)
 ```
 
@@ -130,4 +134,4 @@ Validate the data layer directly with:
 
 ## Out of scope (for now)
 
-Controlling sessions (sending input, killing), remote/multi-machine monitoring, anything that writes to `~/.claude/`. Read-only observation only.
+Controlling sessions (sending input, killing) and remote/multi-machine monitoring stay out, as does anything that **writes** to `~/.claude/`. Read-only observation only — the one outward action is *navigation*: focusing the terminal tab a session runs in (a window-manager convenience that never touches the agent or its files; see DISCOVERY §6).
