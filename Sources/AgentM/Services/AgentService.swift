@@ -21,6 +21,8 @@ final class AgentService {
     /// sessionId → when the current status began (registry `statusUpdatedAt`). On a working
     /// row, `now − turnStart` is how long the current turn has been running.
     private(set) var turnStarts: [String: Date] = [:]
+    /// When the last successful refresh completed — drives the "Refreshed m:ss ago" indicator.
+    private(set) var lastRefreshed: Date?
     var errorMessage: String?
 
     /// Set by the UI: poll fast while the user is looking at the popover.
@@ -119,6 +121,7 @@ final class AgentService {
             self.turnStarts = io.turnStarts
             self.groups = groupSessions(sessions, lastActivity: io.act, asksQuestion: io.asks,
                                         registryStatus: io.registry, now: Date())
+            self.lastRefreshed = Date()
 
             // Did membership / status / state change since last poll? (drives fast vs backoff)
             // Include the registry status so a `busy`→`shell` transition still counts as a change.

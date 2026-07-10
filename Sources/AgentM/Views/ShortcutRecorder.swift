@@ -1,25 +1,24 @@
 import SwiftUI
 import Carbon.HIToolbox
 
-/// A click-to-record control that captures a key combo (virtual keyCode + modifiers)
-/// and writes it into `HotKeyPreferences`.
+/// A click-to-record control that captures a key combo (virtual keyCode + modifiers).
+/// Generic over which preference it drives — the caller supplies the current `display`
+/// label and an `onCapture` that stores the captured `(keyCode, modifiers, display)`.
 struct ShortcutRecorder: NSViewRepresentable {
-    let prefs: HotKeyPreferences
+    let display: String
+    let onCapture: (UInt32, UInt32, String) -> Void
 
     func makeNSView(context: Context) -> KeyRecorderView {
         let view = KeyRecorderView()
-        view.display = prefs.display
-        view.onCapture = { keyCode, modifiers, display in
-            prefs.keyCode = keyCode
-            prefs.modifiers = modifiers
-            prefs.display = display
-        }
+        view.display = display
+        view.onCapture = onCapture
         return view
     }
 
     func updateNSView(_ view: KeyRecorderView, context: Context) {
+        view.onCapture = onCapture
         if !view.recording {
-            view.display = prefs.display
+            view.display = display
             view.needsDisplay = true
         }
     }
@@ -73,7 +72,7 @@ final class KeyRecorderView: NSView {
 
         let text = recording ? "Recording… (Esc cancels)" : (display.isEmpty ? "Click to record" : display)
         let attrs: [NSAttributedString.Key: Any] = [
-            .font: NSFont.systemFont(ofSize: 12, weight: .medium),
+            .font: NSFont.systemFont(ofSize: 13, weight: .medium),
             .foregroundColor: NSColor.labelColor,
         ]
         let size = (text as NSString).size(withAttributes: attrs)

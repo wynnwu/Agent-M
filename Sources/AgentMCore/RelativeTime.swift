@@ -15,3 +15,10 @@ public func turnElapsed(_ seconds: TimeInterval) -> String {
     if t < 3600 { return "\(t / 60)m \(String(format: "%02d", t % 60))s" }
     return "\(t / 3600)h \(String(format: "%02d", (t % 3600) / 60))m"
 }
+
+/// Clock-style elapsed for the "Refreshed … ago" indicator: `0:34`, `1:05`, `10:09`
+/// (m:ss, zero-padded seconds, no unit letters). Negatives clamp to `0:00`.
+public func minutesSeconds(_ seconds: TimeInterval) -> String {
+    let t = Int(max(0, seconds))
+    return "\(t / 60):\(String(format: "%02d", t % 60))"
+}

@@ -209,14 +209,21 @@ enum SnapshotSupport {
                             errorMessage: nil, onJump: { _ in }, onTranscript: { _ in }, scrollable: false)
             Divider().opacity(0.4)
             HStack(spacing: 14) {
-                Image(systemName: "arrow.clockwise")
                 Image(systemName: "gearshape")
+                HStack(spacing: 6) {
+                    Image(systemName: "arrow.clockwise")
+                    Text("⌘R").foregroundStyle(.tertiary)
+                }
+                Text("Refreshed 0:34 ago").foregroundStyle(.tertiary).monospacedDigit()
                 Spacer()
-                Text("⌃⌘A · esc").foregroundStyle(.tertiary)
+                Text("⌥M Open from anywhere.").foregroundStyle(.tertiary)
                 Text("Quit")
             }
             .font(.system(size: 13)).foregroundStyle(.secondary)
             .padding(.horizontal, 16).padding(.vertical, 10)
+            .overlay(alignment: .center) {
+                Text("Agent M").font(.system(size: 13, weight: .semibold)).foregroundStyle(.secondary)
+            }
         }
         .frame(width: 1082)
         .environment(\.colorScheme, .dark)

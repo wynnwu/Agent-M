@@ -4,6 +4,27 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.7] - 2026-07-11
+
+### Added
+- **Jump to an agent by number.** With the panel open, press **1–9** to bring the Nth agent's
+  terminal tab to the front — numbered top-to-bottom down **Working**, then continuing into
+  **Waiting for you**. Each numbered row shows its digit as a badge at the bottom-right. Turn it
+  off under Settings → Jump Shortcuts.
+- **Refresh shortcut.** Press **⌘R** while the panel is open to reload the session list.
+  Re-bindable and toggle-able under Settings → Refresh Shortcut.
+- **"Refreshed m:ss ago"** in the toolbar — a live count of how long since the last poll, which
+  resets whenever the list refreshes (manually, by shortcut, or on the next poll).
+
+### Changed
+- **Toolbar redesign.** The settings gear, the refresh button with its `⌘R` hint, and the
+  "Refreshed …" indicator now sit together on the **left**; **Agent M** is centered; the
+  global-shortcut hint and Quit are on the right.
+- The global-shortcut hint now reads **"⌥M Open from anywhere."** — the "· esc" note moved into
+  Settings, which now spells out that **Esc** dismisses the panel.
+- **Settings text is larger** and easier to read, with bigger section headings, and the row
+  shortcut badges are more legible.
+
 ## [0.1.6] - 2026-07-03
 
 ### Added
@@ -110,6 +131,7 @@ First release.
 - `AgentMCore` library (models, JSONL parser, status grouping, formatting) with unit tests.
 - `scripts/make-app.sh` to package a double-clickable, menu-bar-only `.app`.
 
+[0.1.7]: https://github.com/wynnwu/agent-m/releases/tag/v0.1.7
 [0.1.6]: https://github.com/wynnwu/agent-m/releases/tag/v0.1.6
 [0.1.5]: https://github.com/wynnwu/agent-m/releases/tag/v0.1.5
 [0.1.4]: https://github.com/wynnwu/agent-m/releases/tag/v0.1.4

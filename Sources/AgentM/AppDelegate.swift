@@ -144,9 +144,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             layer.add(slide, forKey: "slide")
             layer.add(fade, forKey: "shadow")
         }
-        // Esc closes while open.
+        // While the panel is key: Esc closes it, the refresh combo (⌘R) reloads, and a bare
+        // digit 1–9 focuses the Nth agent's terminal. All are live only while the panel is the
+        // key window — a plain focused window with no text field, so bare digits are unambiguous.
         escMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
-            if event.keyCode == 53 { self?.closePopover(); return nil } // kVK_Escape
+            guard let self else { return event }
+            if event.keyCode == 53 { self.closePopover(); return nil } // kVK_Escape
+            let carbon = KeyRecorderView.carbonModifiers(event.modifierFlags.intersection(.deviceIndependentFlagsMask))
+            if self.prefs.refreshEnabled, carbon == self.prefs.refreshModifiers,
+               UInt32(event.keyCode) == self.prefs.refreshKeyCode {
+                Task { await self.service.refreshNow() }
+                return nil // consume
+            }
+            if self.prefs.jumpEnabled, carbon == 0, // a bare digit (no modifiers) while focused
+               let n = shortcutNumber(forKeyCode: UInt32(event.keyCode)) {
+                self.jumpToNumbered(n)
+                return nil // consume
+            }
             return event
         }
         // Clicking in any other app dismisses (our own clicks aren't seen by the global monitor).
@@ -209,6 +223,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
                 DispatchQueue.main.async { self?.openTranscript(for: session) }
             }
         }
+    }
+
+    /// Number-key shortcut while the panel is open: focus the Nth agent's terminal.
+    /// Numbering runs over Working then Waiting-for-you (`numberedTargets`); an out-of-range
+    /// digit is a no-op.
+    private func jumpToNumbered(_ n: Int) {
+        let targets = numberedTargets(working: service.groups.working, waiting: service.groups.waitingForYou)
+        guard n >= 1, n <= targets.count else { return }
+        jumpToTerminal(for: targets[n - 1])
     }
 
     func openTranscript(for session: AgentSession) {

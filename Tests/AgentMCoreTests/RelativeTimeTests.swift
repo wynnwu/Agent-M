@@ -17,4 +17,10 @@ final class RelativeTimeTests: XCTestCase {
     func test_turnElapsed_minutes_seconds()  { XCTAssertEqual(turnElapsed(80), "1m 20s"); XCTAssertEqual(turnElapsed(65), "1m 05s") }
     func test_turnElapsed_minute_boundary()  { XCTAssertEqual(turnElapsed(120), "2m 00s") }
     func test_turnElapsed_hours_minutes()    { XCTAssertEqual(turnElapsed(3660), "1h 01m"); XCTAssertEqual(turnElapsed(7200), "2h 00m") }
+
+    // minutesSeconds: m:ss clock for the "Refreshed … ago" indicator.
+    func test_minutesSeconds_zero_and_negative(){ XCTAssertEqual(minutesSeconds(0), "0:00"); XCTAssertEqual(minutesSeconds(-5), "0:00") }
+    func test_minutesSeconds_seconds()          { XCTAssertEqual(minutesSeconds(34), "0:34") }
+    func test_minutesSeconds_minute()           { XCTAssertEqual(minutesSeconds(65), "1:05") }
+    func test_minutesSeconds_ten_minutes()      { XCTAssertEqual(minutesSeconds(609), "10:09") }
 }

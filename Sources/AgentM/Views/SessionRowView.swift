@@ -10,6 +10,8 @@ struct SessionRowView: View {
     let model: String?
     let turnStart: Date?
     let bucket: StatusBucket
+    /// 1…9 when this row has a number-key jump shortcut (Working, then Waiting-for-you); nil otherwise.
+    var shortcutNumber: Int? = nil
     let onJump: () -> Void
     let onTranscript: () -> Void
 
@@ -78,22 +80,35 @@ struct SessionRowView: View {
         .buttonStyle(.plain)
         .pointerOnHover()
         .help("Click to jump to the terminal tab · ⌘-click (or the bubble) for the transcript")
-        // Transcript affordance, overlaid on top so its clicks don't fall through to the row.
+        // Bottom-right affordances: the number-jump shortcut badge (display-only, clicks fall
+        // through to the row's jump) and the transcript pill, overlaid so their clicks don't
+        // fall through to the row underneath.
         .overlay(alignment: .bottomTrailing) {
-            Button(action: onTranscript) {
-                Image(systemName: "text.bubble")
-                    .font(.system(size: 13, weight: .medium))
-                    .foregroundStyle(Color.white.opacity(pillHover ? 0.95 : 0.6))
-                    .padding(.horizontal, 8).padding(.vertical, 5)
-                    .background(Color.white.opacity(pillHover ? 0.18 : 0.09),
-                                in: RoundedRectangle(cornerRadius: 8))
-                    .contentShape(Rectangle())
+            HStack(spacing: 6) {
+                if let shortcutNumber {
+                    Text("\(shortcutNumber)")
+                        .font(.system(size: 13, weight: .semibold, design: .rounded))
+                        .foregroundStyle(Color.white.opacity(0.85))
+                        .frame(minWidth: 15)
+                        .padding(.horizontal, 7).padding(.vertical, 3)
+                        .background(Color.white.opacity(0.1), in: RoundedRectangle(cornerRadius: 6))
+                        .allowsHitTesting(false) // a click here still jumps (falls through to the row)
+                }
+                Button(action: onTranscript) {
+                    Image(systemName: "text.bubble")
+                        .font(.system(size: 13, weight: .medium))
+                        .foregroundStyle(Color.white.opacity(pillHover ? 0.95 : 0.6))
+                        .padding(.horizontal, 8).padding(.vertical, 5)
+                        .background(Color.white.opacity(pillHover ? 0.18 : 0.09),
+                                    in: RoundedRectangle(cornerRadius: 8))
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .onHover { pillHover = $0 }
+                .pointerOnHover()
+                .help("Open transcript")
             }
-            .buttonStyle(.plain)
-            .onHover { pillHover = $0 }
-            .pointerOnHover()
             .padding(.horizontal, 10).padding(.vertical, 8)
-            .help("Open transcript")
         }
         .onHover { hovering = $0 }
     }
