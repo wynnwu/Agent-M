@@ -43,6 +43,11 @@ final class JumpShortcutsTests: XCTestCase {
         XCTAssertEqual(targets.map(\.sessionId), ["w1", "w2", "q1", "q2"])
     }
 
+    func test_numberedTargets_appends_idle_last() {
+        let targets = numberedTargets(working: [s("w1")], waiting: [s("q1")], idle: [s("i1"), s("i2")])
+        XCTAssertEqual(targets.map(\.sessionId), ["w1", "q1", "i1", "i2"])
+    }
+
     func test_numberedTargets_caps_at_the_limit() {
         let working = (1...10).map { s("w\($0)") }
         let targets = numberedTargets(working: working, waiting: [s("q1")])

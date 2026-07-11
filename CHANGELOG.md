@@ -4,6 +4,22 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.0] - 2026-07-11
+
+### Added
+- **Idle agents are numbered too.** The `1`–`9` jump shortcuts now continue past Working and
+  Waiting-for-you into the **Idle** column, so any of your first nine agents is a single
+  keypress away. Numbering still starts at the top of Working.
+- **Esc returns you to where you were.** Opening the panel remembers the app that was frontmost;
+  pressing **Esc** hands focus back to it, so you land right back in your terminal (or wherever
+  you came from) instead of nowhere.
+
+### Changed
+- **Working agents now glow instead of blinking.** The pulsing status dot is replaced by a soft,
+  gently breathing glow that spills from the dot toward the right, under the card — green for
+  interactive agents, blue for background jobs (matching each row's dot). A calmer, prettier
+  "this one's alive" cue.
+
 ## [0.1.7] - 2026-07-11
 
 ### Added
@@ -131,6 +147,7 @@ First release.
 - `AgentMCore` library (models, JSONL parser, status grouping, formatting) with unit tests.
 - `scripts/make-app.sh` to package a double-clickable, menu-bar-only `.app`.
 
+[0.2.0]: https://github.com/wynnwu/agent-m/releases/tag/v0.2.0
 [0.1.7]: https://github.com/wynnwu/agent-m/releases/tag/v0.1.7
 [0.1.6]: https://github.com/wynnwu/agent-m/releases/tag/v0.1.6
 [0.1.5]: https://github.com/wynnwu/agent-m/releases/tag/v0.1.5

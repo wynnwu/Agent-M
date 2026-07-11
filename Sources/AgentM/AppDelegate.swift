@@ -23,6 +23,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     private let panelMargin: CGFloat = 30 // room around the content for the soft shadow
     private var escMonitor: Any?
     private var clickMonitor: Any?
+    /// The app that was frontmost when the panel opened, so Esc can hand focus back to it.
+    private var previousApp: NSRunningApplication?
     private var transcriptWindows: [String: NSWindow] = [:]
     private var settingsWindow: NSWindow?
 
@@ -103,6 +105,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
     private func showPopover() {
         guard let panel, let hosting, let shadowHost, let glass else { return }
+        // Remember who was focused (before we steal focus) so Esc can hand it back.
+        let front = NSWorkspace.shared.frontmostApplication
+        previousApp = (front?.bundleIdentifier == Bundle.main.bundleIdentifier) ? nil : front
         hosting.layoutSubtreeIfNeeded()
         var content = hosting.fittingSize
         if content.width < 100 || content.height < 100 { content = NSSize(width: 1082, height: 420) } // fallback
@@ -149,7 +154,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         // key window — a plain focused window with no text field, so bare digits are unambiguous.
         escMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
             guard let self else { return event }
-            if event.keyCode == 53 { self.closePopover(); return nil } // kVK_Escape
+            if event.keyCode == 53 { self.closePopover(restorePrevious: true); return nil } // kVK_Escape
             let carbon = KeyRecorderView.carbonModifiers(event.modifierFlags.intersection(.deviceIndependentFlagsMask))
             if self.prefs.refreshEnabled, carbon == self.prefs.refreshModifiers,
                UInt32(event.keyCode) == self.prefs.refreshKeyCode {
@@ -169,10 +174,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         }
     }
 
-    private func closePopover() {
+    private func closePopover(restorePrevious: Bool = false) {
         service.popoverOpen = false
         if let escMonitor { NSEvent.removeMonitor(escMonitor); self.escMonitor = nil }
         if let clickMonitor { NSEvent.removeMonitor(clickMonitor); self.clickMonitor = nil }
+        // Esc hands focus back to whatever app was frontmost when the panel opened.
+        if restorePrevious, let prev = previousApp, prev.bundleIdentifier != Bundle.main.bundleIdentifier {
+            prev.activate()
+        }
+        previousApp = nil
         guard let panel, panel.isVisible, let shadowHost, let layer = shadowHost.layer else { panel?.orderOut(nil); return }
         let h = shadowHost.frame.height
         // Slide the content back up behind the bar and fade the shadow out, then hide.
@@ -229,7 +239,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     /// Numbering runs over Working then Waiting-for-you (`numberedTargets`); an out-of-range
     /// digit is a no-op.
     private func jumpToNumbered(_ n: Int) {
-        let targets = numberedTargets(working: service.groups.working, waiting: service.groups.waitingForYou)
+        let targets = numberedTargets(working: service.groups.working, waiting: service.groups.waitingForYou,
+                                      idle: service.groups.idle)
         guard n >= 1, n <= targets.count else { return }
         jumpToTerminal(for: targets[n - 1])
     }

@@ -31,11 +31,10 @@ struct SessionRowView: View {
                 Circle()
                     .fill(Theme.dot(bucket: bucket, session: session))
                     .frame(width: 9, height: 9)
-                    .opacity(isWorking && pulse ? 0.35 : 1)
                     .padding(.top, 5)
                     .onAppear {
                         guard isWorking else { return }
-                        withAnimation(.easeInOut(duration: 1.1).repeatForever(autoreverses: true)) { pulse = true }
+                        withAnimation(.easeInOut(duration: 1.4).repeatForever(autoreverses: true)) { pulse = true }
                     }
                 VStack(alignment: .leading, spacing: 3) {
                     HStack(spacing: 6) {
@@ -75,6 +74,19 @@ struct SessionRowView: View {
                     .padding(.horizontal, 6).padding(.vertical, 3)
                     .animation(.easeOut(duration: 0.15), value: hovering)
             )
+            // A working agent gets a soft glow (green, or blue for a background job — matching its
+            // status dot) that spills from the dot toward the right, under the card content: a
+            // gently breathing "this one's alive" cue.
+            .background {
+                if isWorking {
+                    RoundedRectangle(cornerRadius: 10)
+                        .fill(RadialGradient(
+                            colors: [Theme.dot(bucket: bucket, session: session).opacity(0.24), .clear],
+                            center: UnitPoint(x: 0, y: 0.5), startRadius: 0, endRadius: 300))
+                        .opacity(pulse ? 0.4 : 1) // gentle breathing
+                        .padding(.horizontal, 6).padding(.vertical, 3)
+                }
+            }
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)

@@ -39,8 +39,8 @@ struct SessionListView: View {
             .padding(14)
         } else {
             HStack(alignment: .top, spacing: 0) {
-                // Numbering runs 1…9 over Working (top→bottom) then Waiting-for-you; Idle is unnumbered.
-                column("Idle", groups.idle, .idle, numberOffset: nil)
+                // Numbering runs 1…9 over Working (top→bottom), then Waiting-for-you, then Idle.
+                column("Idle", groups.idle, .idle, numberOffset: groups.working.count + groups.waitingForYou.count)
                 Divider()
                 column("Waiting for you", groups.waitingForYou, .waitingForYou, numberOffset: groups.working.count)
                 Divider()

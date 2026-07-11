@@ -28,8 +28,9 @@ public func shortcutNumber(forKeyCode k: UInt32) -> Int? {
 }
 
 /// The agents reachable by number shortcut, in order — Working first, then Waiting-for-you,
-/// capped at `limit`. Index `i` is shortcut number `i + 1`; both the badges and the key
-/// handler derive their mapping from this single list.
-public func numberedTargets(working: [AgentSession], waiting: [AgentSession], limit: Int = 9) -> [AgentSession] {
-    Array((working + waiting).prefix(limit))
+/// then Idle, capped at `limit`. Index `i` is shortcut number `i + 1`; both the badges and the
+/// key handler derive their mapping from this single list.
+public func numberedTargets(working: [AgentSession], waiting: [AgentSession],
+                            idle: [AgentSession] = [], limit: Int = 9) -> [AgentSession] {
+    Array((working + waiting + idle).prefix(limit))
 }
