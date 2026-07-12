@@ -109,6 +109,10 @@ Local-only and read-only. Transcripts can contain anything you've pasted into a 
 
 Launch-at-login, sub-agent/workflow drill-in, and controlling sessions (sending input, killing) are intentionally out of scope.
 
+## Related
+
+Agent M watches your agents — [nosleep](https://github.com/wynnwu/nosleep) 🦉 keeps your Mac awake (lid closed, timer optional) so they can keep working.
+
 ## License
 
 [MIT](LICENSE).
