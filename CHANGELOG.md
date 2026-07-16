@@ -4,6 +4,18 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.1] - 2026-07-17
+
+### Changed
+- **The detail window now shows the same live status as the menu-bar panel** — Working (with a
+  running timer), Waiting for your reply, or nothing when idle — read straight from the session
+  service. Previously it guessed from the visible turns, which broke on long working turns whose
+  opening prompt had scrolled out of view (it wrongly showed "Waiting" while the agent was busy).
+- **Export now defaults to your Downloads folder** and shows a **confirmation toast** when it lands
+  ("Exported N turns" + filename); click it to reveal the file in Finder.
+- **Clearer empty state:** "Nothing to Show — No <prompts/responses> in the last few turns. Export
+  will show entire history." — a nudge that Export isn't limited to what's on screen.
+
 ## [0.3.0] - 2026-07-17
 
 ### Added
@@ -185,6 +197,7 @@ First release.
 - `AgentMCore` library (models, JSONL parser, status grouping, formatting) with unit tests.
 - `scripts/make-app.sh` to package a double-clickable, menu-bar-only `.app`.
 
+[0.3.1]: https://github.com/wynnwu/agent-m/releases/tag/v0.3.1
 [0.3.0]: https://github.com/wynnwu/agent-m/releases/tag/v0.3.0
 [0.2.2]: https://github.com/wynnwu/agent-m/releases/tag/v0.2.2
 [0.2.1]: https://github.com/wynnwu/agent-m/releases/tag/v0.2.1

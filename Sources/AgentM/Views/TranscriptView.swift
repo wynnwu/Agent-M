@@ -42,21 +42,33 @@ enum TranscriptFilter: String, CaseIterable, Identifiable {
 
 struct TranscriptView: View {
     let target: TranscriptTarget
+    /// The live session source, so the window shows the SAME status as the menu-bar panel
+    /// (working / waiting / idle) instead of re-deriving it from the transcript tail.
+    let service: AgentService
     @State private var store: TranscriptStore
+    @State private var exportConfirmation: ExportConfirmation?
 
-    init(target: TranscriptTarget) {
+    init(target: TranscriptTarget, service: AgentService) {
         self.target = target
+        self.service = service
         _store = State(initialValue: TranscriptStore(sessionID: target.sessionId))
     }
 
     var body: some View {
+        // Reading these @Observable properties makes the window refresh live on each poll.
+        let status = service.statusBucket(forSessionID: target.sessionId)
         TranscriptWindowBody(target: target, records: store.records, notFound: store.notFound,
+                             status: status, liveTurnStart: service.turnStarts[target.sessionId],
                              onExport: exportSession)
+            .overlay(alignment: .bottom) {
+                if let c = exportConfirmation { ExportToast(confirmation: c) }
+            }
             .onAppear { store.load(); store.startWatching() }
             .onDisappear { store.stopWatching() }
     }
 
-    /// Build a Markdown log of the WHOLE session for the chosen scope and offer to save it.
+    /// Build a Markdown log of the WHOLE session for the chosen scope, offer to save it, and
+    /// confirm with a transient toast when it lands.
     private func exportSession(_ filter: TranscriptFilter) {
         let records = store.fullRecords()
         let meta = TranscriptExport.Meta(
@@ -65,7 +77,56 @@ struct TranscriptView: View {
             branch: target.branch, kind: target.kind)
         let md = TranscriptExport.markdown(records: records, scope: filter.exportScope,
                                            meta: meta, now: Date())
-        TranscriptExporter.save(markdown: md, folder: target.folder, scope: filter.exportScope)
+        guard let url = TranscriptExporter.save(markdown: md, folder: target.folder,
+                                                scope: filter.exportScope) else { return }
+        let token = UUID()
+        withAnimation(.spring(duration: 0.3)) {
+            exportConfirmation = ExportConfirmation(id: token, url: url, count: records.filter { filter.includes($0.role) }.count)
+        }
+        // Auto-dismiss ~3.5s later, unless a newer export replaced it.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 3.5) {
+            if exportConfirmation?.id == token { withAnimation(.easeOut) { exportConfirmation = nil } }
+        }
+    }
+}
+
+/// A successful export, surfaced as a toast.
+struct ExportConfirmation: Equatable {
+    let id: UUID
+    let url: URL
+    let count: Int
+}
+
+/// A transient "exported" confirmation pinned to the bottom of the window. Click to reveal in Finder.
+struct ExportToast: View {
+    let confirmation: ExportConfirmation
+    @State private var hovering = false
+
+    var body: some View {
+        Button {
+            NSWorkspace.shared.activateFileViewerSelecting([confirmation.url])
+        } label: {
+            HStack(spacing: 8) {
+                Image(systemName: "checkmark.circle.fill").foregroundStyle(Theme.working)
+                VStack(alignment: .leading, spacing: 1) {
+                    Text("Exported \(confirmation.count) turn\(confirmation.count == 1 ? "" : "s")")
+                        .font(.system(size: 13, weight: .semibold))
+                    Text(confirmation.url.lastPathComponent)
+                        .font(.system(size: 12)).foregroundStyle(.secondary).lineLimit(1)
+                }
+                Image(systemName: "arrow.up.forward.app").font(.system(size: 11)).foregroundStyle(.tertiary)
+            }
+            .padding(.horizontal, 12).padding(.vertical, 9)
+            .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 10))
+            .overlay(RoundedRectangle(cornerRadius: 10).strokeBorder(Color.white.opacity(hovering ? 0.18 : 0.08)))
+            .shadow(color: .black.opacity(0.3), radius: 8, y: 3)
+            .contentShape(RoundedRectangle(cornerRadius: 10))
+        }
+        .buttonStyle(.plain)
+        .help("Reveal in Finder")
+        .onHover { hovering = $0; if $0 { NSCursor.pointingHand.set() } else { NSCursor.arrow.set() } }
+        .padding(.bottom, 16)
+        .transition(.move(edge: .bottom).combined(with: .opacity))
     }
 }
 
@@ -76,14 +137,28 @@ struct TranscriptWindowBody: View {
     let records: [TranscriptRecord]
     var notFound: Bool = false
     var scrollable: Bool = true
+    /// The authoritative live status from the menu-bar panel (working / waiting / idle). When
+    /// nil (snapshots/previews, which have no live service) the banner falls back to a
+    /// transcript-derived guess so those still render.
+    var status: StatusBucket? = nil
+    /// When the current turn started (registry `statusUpdatedAt`) — the panel's timer source.
+    var liveTurnStart: Date? = nil
     /// Export the whole session for the given scope. No-op default so snapshots/previews
     /// (which have no store) can render without wiring one up.
     var onExport: (TranscriptFilter) -> Void = { _ in }
 
     @State private var filter: TranscriptFilter = .all
 
-    private var waitingForYou: Bool { TranscriptParser.isAwaitingReply(records: records) }
+    /// Is the agent actively working? Authoritative when `status` is present.
+    private var isWorking: Bool { status == .working }
+    /// Is the conversation handed back to you? Authoritative status wins; else guess from the tail.
+    private var waitingForYou: Bool {
+        if let status { return status == .waitingForYou }
+        return TranscriptParser.isAwaitingReply(records: records)
+    }
     private var visibleRecords: [TranscriptRecord] { records.filter { filter.includes($0.role) } }
+    /// Noun for the empty state, e.g. "No prompts in the last few turns."
+    private var emptyNoun: String { filter == .all ? "turns" : filter.label.lowercased() }
 
     /// The static (non-copyable) meta pieces, in order: model · kind · up-time.
     /// The pid and id are rendered separately as interactive copy tokens.
@@ -124,16 +199,47 @@ struct TranscriptWindowBody: View {
     private var currentTurnStart: Date? { TranscriptParser.currentTurnStart(records: records) }
     private var lastTurnDuration: TimeInterval? { TranscriptParser.lastCompletedTurnDuration(records: records) }
 
-    /// How long the current turn is taking (live) or how long the last one took.
+    /// Working agents get green (interactive) / blue (background), matching the panel's dot.
+    private var workingTint: Color { target.kind == "background" ? Theme.running : Theme.working }
+
+    /// When not working, how long the last completed turn took. (The live "current turn" timer
+    /// lives in the Working banner, so it isn't duplicated here.)
     @ViewBuilder private var turnTiming: some View {
-        if let start = currentTurnStart {
-            TimelineView(.periodic(from: .now, by: 1)) { ctx in
-                Label("current turn " + turnElapsed(ctx.date.timeIntervalSince(start)), systemImage: "timer")
-                    .font(.system(size: 13)).foregroundStyle(Theme.tint(.working)).monospacedDigit()
-            }
-        } else if let d = lastTurnDuration {
+        if !isWorking, let d = lastTurnDuration {
             Label("last turn " + turnElapsed(d), systemImage: "timer")
                 .font(.system(size: 13)).foregroundStyle(.tertiary).monospacedDigit()
+        }
+    }
+
+    /// A status strip that mirrors the menu-bar panel: Working (with a live timer) or
+    /// Waiting for your reply. Idle shows nothing.
+    @ViewBuilder private var statusBanner: some View {
+        if isWorking {
+            HStack(spacing: 6) {
+                Image(systemName: "circle.fill").font(.system(size: 7))
+                Text("Working")
+                if let start = liveTurnStart ?? currentTurnStart {
+                    TimelineView(.periodic(from: .now, by: 1)) { ctx in
+                        Text(turnElapsed(ctx.date.timeIntervalSince(start)))
+                            .monospacedDigit().foregroundStyle(.secondary)
+                    }
+                }
+            }
+            .font(.system(size: 14, weight: .medium))
+            .foregroundStyle(workingTint)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, 14).padding(.vertical, 6)
+            .background(workingTint.opacity(0.12))
+        } else if waitingForYou {
+            HStack(spacing: 6) {
+                Image(systemName: "arrow.turn.down.left")
+                Text("Waiting for your reply")
+            }
+            .font(.system(size: 14, weight: .medium))
+            .foregroundStyle(Theme.yourTurn)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, 14).padding(.vertical, 6)
+            .background(Theme.yourTurn.opacity(0.12))
         }
     }
 
@@ -174,17 +280,7 @@ struct TranscriptWindowBody: View {
             }
             .padding(.horizontal, 14).padding(.top, 12).padding(.bottom, 10)
 
-            if waitingForYou && !notFound {
-                HStack(spacing: 6) {
-                    Image(systemName: "arrow.turn.down.left")
-                    Text("Waiting for your reply")
-                }
-                .font(.system(size: 14, weight: .medium))
-                .foregroundStyle(Theme.yourTurn)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.horizontal, 14).padding(.vertical, 6)
-                .background(Theme.yourTurn.opacity(0.12))
-            }
+            if !notFound { statusBanner }
             Divider().opacity(0.5)
 
             if notFound {
@@ -193,9 +289,9 @@ struct TranscriptWindowBody: View {
                                        description: Text("This session hasn't written a transcript file yet."))
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else if visibleRecords.isEmpty {
-                ContentUnavailableView("Nothing to show",
+                ContentUnavailableView("Nothing to Show",
                                        systemImage: "line.3.horizontal.decrease.circle",
-                                       description: Text("No \(filter.label.lowercased()) in the last turns."))
+                                       description: Text("No \(emptyNoun) in the last few turns.\nExport will show entire history."))
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
                 TranscriptContent(records: visibleRecords, scrollable: scrollable)
@@ -320,17 +416,22 @@ struct ExportButton: View {
 /// Saves an exported Markdown document via a native Save panel. Kept out of the SwiftUI view so
 /// the AppKit save flow (and the `.accessory` activation dance) is in one place.
 enum TranscriptExporter {
+    /// Present the Save panel and write the file. Returns the saved URL (nil if the user
+    /// cancelled or the write failed) so the caller can show a confirmation.
     @MainActor
-    static func save(markdown: String, folder: String, scope: TranscriptExport.Scope) {
+    static func save(markdown: String, folder: String, scope: TranscriptExport.Scope) -> URL? {
         let panel = NSSavePanel()
         panel.nameFieldStringValue = defaultFilename(folder: folder, scope: scope)
         panel.allowedContentTypes = [.init(filenameExtension: "md") ?? .plainText]
         panel.canCreateDirectories = true
         panel.title = "Export Session"
+        // Default to ~/Downloads.
+        panel.directoryURL = FileManager.default.urls(for: .downloadsDirectory, in: .userDomainMask).first
         // The app is an accessory (no Dock icon); bring it forward so the panel isn't lost behind others.
         NSApp.activate(ignoringOtherApps: true)
-        guard panel.runModal() == .OK, let url = panel.url else { return }
-        try? markdown.data(using: .utf8)?.write(to: url)
+        guard panel.runModal() == .OK, let url = panel.url else { return nil }
+        do { try markdown.data(using: .utf8)?.write(to: url); return url }
+        catch { return nil }
     }
 
     /// `acme-web-2026-07-17.md`, with a `-prompts` / `-responses` suffix for those scopes.

@@ -128,7 +128,7 @@ enum SnapshotSupport {
               toolUses: ["Edit"], isToolResult: false, isMeta: false, timestamp: ts(53), model: "claude-opus-4-8", stopReason: "end_turn"),
     ]
 
-    static func renderTranscript(to path: String) {
+    static func renderTranscript(to path: String, status: StatusBucket? = nil) {
         let target = TranscriptTarget(
             sessionId: "a1b2c3d4e5f60718",
             folder: "acme-web",
@@ -138,7 +138,23 @@ enum SnapshotSupport {
             pid: 48213,
             startedAt: Date().addingTimeInterval(-3 * 3600).timeIntervalSince1970 * 1000
         )
-        let view = TranscriptWindowBody(target: target, records: sampleRecords, notFound: false, scrollable: false)
+        let view = TranscriptWindowBody(target: target, records: sampleRecords, notFound: false,
+                                        scrollable: false, status: status,
+                                        liveTurnStart: status == .working ? Date().addingTimeInterval(-546) : nil)
+        write(view, to: path)
+    }
+
+    /// Render the export confirmation toast over the window, to verify its styling.
+    static func renderExportToast(to path: String) {
+        let target = TranscriptTarget(sessionId: "a1b2c3d4e5f60718", folder: "acme-web",
+                                      parent: "/Users/dev/Code/acme", branch: "main",
+                                      kind: "interactive", pid: 48213)
+        let url = URL(fileURLWithPath: "/Users/dev/Downloads/acme-web-2026-07-17.md")
+        let view = TranscriptWindowBody(target: target, records: sampleRecords, notFound: false,
+                                        scrollable: false, status: .idle)
+            .overlay(alignment: .bottom) {
+                ExportToast(confirmation: ExportConfirmation(id: UUID(), url: url, count: 12))
+            }
         write(view, to: path)
     }
 

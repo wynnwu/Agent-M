@@ -261,7 +261,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             pid: session.pid,
             startedAt: session.startedAt
         )
-        let host = NSHostingController(rootView: TranscriptView(target: target))
+        let host = NSHostingController(rootView: TranscriptView(target: target, service: service))
         let window = NSWindow(contentViewController: host)
         window.title = session.folder
         window.styleMask = [.titled, .closable, .resizable, .miniaturizable]

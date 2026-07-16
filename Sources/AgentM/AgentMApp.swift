@@ -13,6 +13,12 @@ struct AgentMApp: App {
         if let i = args.firstIndex(of: "--snapshot-transcript"), i + 1 < args.count {
             SnapshotSupport.renderTranscript(to: args[i + 1]); exit(0)
         }
+        if let i = args.firstIndex(of: "--snapshot-transcript-working"), i + 1 < args.count {
+            SnapshotSupport.renderTranscript(to: args[i + 1], status: .working); exit(0)
+        }
+        if let i = args.firstIndex(of: "--snapshot-export-toast"), i + 1 < args.count {
+            SnapshotSupport.renderExportToast(to: args[i + 1]); exit(0)
+        }
         if let i = args.firstIndex(of: "--snapshot-window"), i + 2 < args.count {
             SnapshotSupport.renderWindow(sessionID: args[i + 1], to: args[i + 2]); exit(0)
         }

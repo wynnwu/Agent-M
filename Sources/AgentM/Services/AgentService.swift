@@ -63,6 +63,16 @@ final class AgentService {
 
     func stop() { task?.cancel(); task = nil }
 
+    /// The live bucket the menu-bar panel is showing for a session (working / waiting / idle),
+    /// so the detail window can display the same authoritative status instead of re-deriving it
+    /// from the transcript tail. `nil` when the session isn't in the current snapshot.
+    func statusBucket(forSessionID id: String) -> StatusBucket? {
+        if groups.working.contains(where: { $0.sessionId == id }) { return .working }
+        if groups.waitingForYou.contains(where: { $0.sessionId == id }) { return .waitingForYou }
+        if groups.idle.contains(where: { $0.sessionId == id }) { return .idle }
+        return nil
+    }
+
     func refreshNow() async {
         if isRefreshing { return } // avoid overlapping fetches (loop + on-open)
         isRefreshing = true
