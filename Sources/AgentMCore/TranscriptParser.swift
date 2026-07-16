@@ -122,6 +122,14 @@ public enum TranscriptParser {
         return nil
     }
 
+    /// Whether the conversation is handed back to you: the last renderable turn is the
+    /// assistant's AND no turn is currently in progress. Crucially this is **false while the
+    /// agent is mid-turn** (it has emitted text or a tool call but not yet `end_turn`), which
+    /// the UI should show as "working" — matching the menu-bar panel, not "waiting for you".
+    public static func isAwaitingReply(records: [TranscriptRecord]) -> Bool {
+        records.last?.role == .assistant && currentTurnStart(records: records) == nil
+    }
+
     /// Start of the in-progress turn — the last genuine prompt with no `end_turn` after it —
     /// or `nil` when the last turn is already complete (nothing running).
     public static func currentTurnStart(records: [TranscriptRecord]) -> Date? {
@@ -141,6 +149,30 @@ public enum TranscriptParser {
             return b
         }
         return nil
+    }
+
+    /// A slash command the user invoked, e.g. `/goal ship it`.
+    public struct SlashCommand: Equatable, Sendable {
+        public let name: String     // includes the leading slash, e.g. "/goal"
+        public let args: String?    // trimmed arguments, or nil when there were none
+        public init(name: String, args: String?) { self.name = name; self.args = args }
+    }
+
+    /// If a user turn's text is a slash-command invocation, pull out the command and its
+    /// arguments. Claude Code records these as a `<command-name>/foo</command-name>` block
+    /// (optionally with `<command-args>…</command-args>`). Returns nil for ordinary prose.
+    public static func slashCommand(in text: String) -> SlashCommand? {
+        guard let name = tag("command-name", in: text), !name.isEmpty else { return nil }
+        let args = tag("command-args", in: text)?.trimmingCharacters(in: .whitespacesAndNewlines)
+        return SlashCommand(name: name, args: (args?.isEmpty ?? true) ? nil : args)
+    }
+
+    /// Contents of the first `<tag>…</tag>` in `text`, trimmed; nil if absent.
+    private static func tag(_ tag: String, in text: String) -> String? {
+        guard let open = text.range(of: "<\(tag)>"),
+              let close = text.range(of: "</\(tag)>"), open.upperBound <= close.lowerBound
+        else { return nil }
+        return String(text[open.upperBound..<close.lowerBound]).trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
     /// The last genuine user prompt: a user turn that isn't meta, isn't a tool result,

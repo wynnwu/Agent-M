@@ -4,6 +4,27 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.0] - 2026-07-17
+
+### Added
+- **Export a session to Markdown.** An **Export** button next to the transcript filter writes the
+  **whole session** (not just the ~12 turns on screen) to a nice `.md` file via a native Save
+  dialog. It respects the filter — **All**, **Prompts** only, or **Responses** only — so you can
+  keep a clean log of just your prompting or the full conversation. Each turn is stamped with its
+  full local date-time (`yyyy-MM-dd HH:mm:ss`), assistant turns note the tools they used
+  (`_used: Bash, Edit_`), and user slash-command invocations render as **`/goal` …**. The document
+  opens with a header of session id, model, branch, kind and export time.
+
+### Changed
+- **The single-conversation window opens ~50% wider** by default, so more of each turn is visible
+  without resizing.
+
+### Fixed
+- **Detail window no longer says "Waiting for your reply" while an agent is working.** It used a
+  naive "last turn was the assistant's" check, which is true mid-turn too (before `end_turn`). It
+  now suppresses the banner whenever a turn is in progress, so the window agrees with the menu-bar
+  panel's Working status.
+
 ## [0.2.2] - 2026-07-17
 
 ### Changed
@@ -164,6 +185,7 @@ First release.
 - `AgentMCore` library (models, JSONL parser, status grouping, formatting) with unit tests.
 - `scripts/make-app.sh` to package a double-clickable, menu-bar-only `.app`.
 
+[0.3.0]: https://github.com/wynnwu/agent-m/releases/tag/v0.3.0
 [0.2.2]: https://github.com/wynnwu/agent-m/releases/tag/v0.2.2
 [0.2.1]: https://github.com/wynnwu/agent-m/releases/tag/v0.2.1
 [0.2.0]: https://github.com/wynnwu/agent-m/releases/tag/v0.2.0

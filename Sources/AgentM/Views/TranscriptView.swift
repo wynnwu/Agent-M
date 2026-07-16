@@ -1,5 +1,6 @@
 import SwiftUI
 import AppKit
+import UniformTypeIdentifiers
 import AgentMCore
 
 /// What a transcript window needs to know, captured when it's opened.
@@ -30,6 +31,13 @@ enum TranscriptFilter: String, CaseIterable, Identifiable {
         case .responses: return role == .assistant
         }
     }
+    var exportScope: TranscriptExport.Scope {
+        switch self {
+        case .all: return .all
+        case .prompts: return .prompts
+        case .responses: return .responses
+        }
+    }
 }
 
 struct TranscriptView: View {
@@ -42,9 +50,22 @@ struct TranscriptView: View {
     }
 
     var body: some View {
-        TranscriptWindowBody(target: target, records: store.records, notFound: store.notFound)
+        TranscriptWindowBody(target: target, records: store.records, notFound: store.notFound,
+                             onExport: exportSession)
             .onAppear { store.load(); store.startWatching() }
             .onDisappear { store.stopWatching() }
+    }
+
+    /// Build a Markdown log of the WHOLE session for the chosen scope and offer to save it.
+    private func exportSession(_ filter: TranscriptFilter) {
+        let records = store.fullRecords()
+        let meta = TranscriptExport.Meta(
+            folder: target.folder, path: "\(target.parent)/\(target.folder)", sessionId: target.sessionId,
+            model: records.last(where: { $0.role == .assistant })?.model,
+            branch: target.branch, kind: target.kind)
+        let md = TranscriptExport.markdown(records: records, scope: filter.exportScope,
+                                           meta: meta, now: Date())
+        TranscriptExporter.save(markdown: md, folder: target.folder, scope: filter.exportScope)
     }
 }
 
@@ -55,10 +76,13 @@ struct TranscriptWindowBody: View {
     let records: [TranscriptRecord]
     var notFound: Bool = false
     var scrollable: Bool = true
+    /// Export the whole session for the given scope. No-op default so snapshots/previews
+    /// (which have no store) can render without wiring one up.
+    var onExport: (TranscriptFilter) -> Void = { _ in }
 
     @State private var filter: TranscriptFilter = .all
 
-    private var waitingForYou: Bool { records.last?.role == .assistant }
+    private var waitingForYou: Bool { TranscriptParser.isAwaitingReply(records: records) }
     private var visibleRecords: [TranscriptRecord] { records.filter { filter.includes($0.role) } }
 
     /// The static (non-copyable) meta pieces, in order: model · kind · up-time.
@@ -126,23 +150,27 @@ struct TranscriptWindowBody: View {
                     Spacer(minLength: 8)
                     if let b = target.branch { BranchPill(name: b) }
                 }
-                HStack(spacing: 0) {
-                    ForEach(TranscriptFilter.allCases) { f in
-                        Button { filter = f } label: {
-                            Text(f.label)
-                                .font(.system(size: 14, weight: .medium))
-                                .frame(maxWidth: .infinity)
-                                .padding(.vertical, 4)
-                                .foregroundStyle(filter == f ? Color.primary : Color.secondary)
-                                .background(filter == f ? Color.white.opacity(0.14) : Color.clear,
-                                            in: RoundedRectangle(cornerRadius: 6))
-                                .contentShape(Rectangle())
+                HStack(spacing: 8) {
+                    HStack(spacing: 0) {
+                        ForEach(TranscriptFilter.allCases) { f in
+                            Button { filter = f } label: {
+                                Text(f.label)
+                                    .font(.system(size: 14, weight: .medium))
+                                    .frame(maxWidth: .infinity)
+                                    .padding(.vertical, 4)
+                                    .foregroundStyle(filter == f ? Color.primary : Color.secondary)
+                                    .background(filter == f ? Color.white.opacity(0.14) : Color.clear,
+                                                in: RoundedRectangle(cornerRadius: 6))
+                                    .contentShape(Rectangle())
+                            }
+                            .buttonStyle(.plain)
                         }
-                        .buttonStyle(.plain)
                     }
+                    .padding(2)
+                    .background(Color.black.opacity(0.25), in: RoundedRectangle(cornerRadius: 8))
+
+                    ExportButton(disabled: notFound) { onExport(filter) }
                 }
-                .padding(2)
-                .background(Color.black.opacity(0.25), in: RoundedRectangle(cornerRadius: 8))
             }
             .padding(.horizontal, 14).padding(.top, 12).padding(.bottom, 10)
 
@@ -260,13 +288,65 @@ struct CopyToken: View {
     }
 }
 
-/// "claude-opus-4-8" → "Opus 4.8". Falls back to the raw id for anything unusual.
-func prettyModel(_ raw: String) -> String {
-    var s = raw
-    if s.hasPrefix("claude-") { s = String(s.dropFirst("claude-".count)) }
-    let parts = s.split(separator: "-")
-    guard let family = parts.first, family.first?.isLetter == true else { return raw }
-    let version = parts.dropFirst().prefix { $0.allSatisfy(\.isNumber) }.joined(separator: ".")
-    let fam = family.prefix(1).uppercased() + family.dropFirst()
-    return version.isEmpty ? fam : "\(fam) \(version)"
+/// The toolbar affordance that exports the whole session for the current filter. Reads as a
+/// button (hover highlight + pointing-hand cursor) and matches the header's understated style.
+struct ExportButton: View {
+    let disabled: Bool
+    let action: () -> Void
+    @State private var hovering = false
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 4) {
+                Image(systemName: "square.and.arrow.up").font(.system(size: 12))
+                Text("Export").font(.system(size: 14, weight: .medium))
+            }
+            .foregroundStyle(disabled ? Color.secondary.opacity(0.5) : Color.secondary)
+            .padding(.horizontal, 10).padding(.vertical, 5)
+            .background(hovering && !disabled ? Color.white.opacity(0.12) : Color.black.opacity(0.25),
+                        in: RoundedRectangle(cornerRadius: 8))
+            .contentShape(RoundedRectangle(cornerRadius: 8))
+        }
+        .buttonStyle(.plain)
+        .disabled(disabled)
+        .help("Export the whole session (current filter) as Markdown")
+        .onHover { inside in
+            hovering = inside
+            if inside && !disabled { NSCursor.pointingHand.set() } else { NSCursor.arrow.set() }
+        }
+    }
 }
+
+/// Saves an exported Markdown document via a native Save panel. Kept out of the SwiftUI view so
+/// the AppKit save flow (and the `.accessory` activation dance) is in one place.
+enum TranscriptExporter {
+    @MainActor
+    static func save(markdown: String, folder: String, scope: TranscriptExport.Scope) {
+        let panel = NSSavePanel()
+        panel.nameFieldStringValue = defaultFilename(folder: folder, scope: scope)
+        panel.allowedContentTypes = [.init(filenameExtension: "md") ?? .plainText]
+        panel.canCreateDirectories = true
+        panel.title = "Export Session"
+        // The app is an accessory (no Dock icon); bring it forward so the panel isn't lost behind others.
+        NSApp.activate(ignoringOtherApps: true)
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        try? markdown.data(using: .utf8)?.write(to: url)
+    }
+
+    /// `acme-web-2026-07-17.md`, with a `-prompts` / `-responses` suffix for those scopes.
+    static func defaultFilename(folder: String, scope: TranscriptExport.Scope,
+                                today: Date = Date(), calendar: Calendar = .current) -> String {
+        let df = DateFormatter()
+        df.locale = Locale(identifier: "en_US_POSIX")
+        df.calendar = calendar
+        df.timeZone = calendar.timeZone
+        df.dateFormat = "yyyy-MM-dd"
+        let base = folder.isEmpty ? "session" : folder
+        let suffix = scope == .all ? "" : "-\(scope.rawValue)"
+        return "\(base)\(suffix)-\(df.string(from: today)).md"
+    }
+}
+
+/// "claude-opus-4-8" → "Opus 4.8". Falls back to the raw id for anything unusual.
+/// Thin alias over `AgentMCore.prettyModelName` so the header and the exporter agree.
+func prettyModel(_ raw: String) -> String { prettyModelName(raw) }

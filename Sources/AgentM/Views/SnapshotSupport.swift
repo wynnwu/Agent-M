@@ -194,6 +194,21 @@ enum SnapshotSupport {
         write(view, to: path)
     }
 
+    /// Export a REAL session to Markdown headlessly — verifies the full-file read + exporter.
+    static func exportSession(sessionID: String, scope: String, to path: String) {
+        let store = TranscriptStore(sessionID: sessionID)
+        store.load()
+        let records = store.fullRecords()
+        let sc = TranscriptExport.Scope(rawValue: scope) ?? .all
+        let meta = TranscriptExport.Meta(
+            folder: "session", path: "(debug export)", sessionId: sessionID,
+            model: records.last(where: { $0.role == .assistant })?.model,
+            branch: nil, kind: "interactive")
+        let md = TranscriptExport.markdown(records: records, scope: sc, meta: meta, now: Date())
+        try? md.data(using: .utf8)?.write(to: URL(fileURLWithPath: path))
+        FileHandle.standardError.write(Data("exported \(records.count) records, scope=\(sc.rawValue)\n".utf8))
+    }
+
     static func renderSettings(to path: String) {
         let prefs = HotKeyPreferences(defaults: UserDefaults(suiteName: "agent-m.snapshot") ?? .standard)
         prefs.enabled = true

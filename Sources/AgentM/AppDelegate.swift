@@ -266,7 +266,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         window.title = session.folder
         window.styleMask = [.titled, .closable, .resizable, .miniaturizable]
         window.appearance = NSAppearance(named: .darkAqua)
-        window.setContentSize(NSSize(width: 480, height: 600))
+        window.setContentSize(NSSize(width: 780, height: 600))   // ~50% wider than the old ~520 default
         window.isReleasedWhenClosed = false
         window.delegate = self
         window.center()

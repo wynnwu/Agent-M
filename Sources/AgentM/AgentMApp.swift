@@ -34,6 +34,15 @@ struct AgentMApp: App {
             FileHandle.standardError.write(Data("records=\(store.records.count) notFound=\(store.notFound)\n".utf8))
             exit(0)
         }
+        // --export-session <sessionId> <all|prompts|responses> <out.md> — exercises the real
+        // full-file read + Markdown export headlessly (for verification).
+        if let i = args.firstIndex(of: "--export-session"), i + 3 < args.count {
+            MainActor.assumeIsolated {
+                SnapshotSupport.exportSession(sessionID: args[i + 1],
+                                              scope: args[i + 2], to: args[i + 3])
+            }
+            exit(0)
+        }
     }
 
     var body: some Scene {

@@ -45,6 +45,15 @@ final class TranscriptStore {
         records = Array(all.suffix(historyLimit))
     }
 
+    /// Read the ENTIRE transcript file (not just the tail) and return every renderable turn —
+    /// the whole-session history used for export. Reads on demand; nothing is cached.
+    func fullRecords() -> [TranscriptRecord] {
+        guard let p = path ?? TranscriptIO.transcriptPath(forSessionID: sessionID),
+              let data = FileManager.default.contents(atPath: p),
+              let text = String(data: data, encoding: .utf8) else { return [] }
+        return Self.renderable(text.components(separatedBy: "\n"))
+    }
+
     func startWatching() {
         guard let p = path, fileHandle == nil, let fh = FileHandle(forReadingAtPath: p) else { return }
         fileHandle = fh
