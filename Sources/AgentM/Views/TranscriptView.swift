@@ -71,25 +71,30 @@ struct TranscriptWindowBody: View {
         return parts
     }
 
-    /// model · kind · up-time · [pid 1234] · [id a1b2c3d4], where the bracketed
-    /// pieces are click-to-copy tokens (pid → raw pid, id → the *full* session id).
+    /// Two rows: the geek data (model · kind · up-time) on top, then the click-to-copy
+    /// pid / id tokens below — kept on their own line so the copy chips can't crowd out
+    /// or truncate the info above them (pid → raw pid, id → the *full* session id).
     @ViewBuilder private var metaLine: some View {
         let sep = Text("  ·  ").foregroundStyle(.tertiary)
-        HStack(spacing: 0) {
-            ForEach(Array(staticMetaParts.enumerated()), id: \.offset) { i, part in
-                if i > 0 { sep }
-                Text(part).textSelection(.enabled)
+        VStack(alignment: .leading, spacing: 3) {
+            HStack(spacing: 0) {
+                ForEach(Array(staticMetaParts.enumerated()), id: \.offset) { i, part in
+                    if i > 0 { sep }
+                    Text(part).textSelection(.enabled)
+                }
             }
-            if let pid = target.pid {
-                sep
-                CopyToken(label: "pid \(pid)", value: "\(pid)")
+            .lineLimit(1)
+            HStack(spacing: 0) {
+                if let pid = target.pid {
+                    CopyToken(label: "pid \(pid)", value: "\(pid)")
+                    sep
+                }
+                CopyToken(label: "id \(target.sessionId.prefix(8))", value: target.sessionId)
             }
-            sep
-            CopyToken(label: "id \(target.sessionId.prefix(8))", value: target.sessionId)
+            .padding(.leading, -5)   // cancel the chip's inner padding so pid aligns with the row above
         }
         .font(.system(size: 14))
         .foregroundStyle(.tertiary)
-        .lineLimit(1)
     }
 
     private var currentTurnStart: Date? { TranscriptParser.currentTurnStart(records: records) }
