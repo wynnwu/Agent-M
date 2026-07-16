@@ -4,6 +4,14 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.2] - 2026-07-17
+
+### Changed
+- **The pid / id copy chips moved to their own line** in the transcript header. At narrow
+  window widths the chips were crowding out the info above them (model, kind and uptime got
+  truncated to `Opu…` / `inter…` / `up 4…`). They now sit on a dedicated row under
+  `model · kind · up-time`, which stays fully visible.
+
 ## [0.2.1] - 2026-07-17
 
 ### Added
@@ -156,6 +164,7 @@ First release.
 - `AgentMCore` library (models, JSONL parser, status grouping, formatting) with unit tests.
 - `scripts/make-app.sh` to package a double-clickable, menu-bar-only `.app`.
 
+[0.2.2]: https://github.com/wynnwu/agent-m/releases/tag/v0.2.2
 [0.2.1]: https://github.com/wynnwu/agent-m/releases/tag/v0.2.1
 [0.2.0]: https://github.com/wynnwu/agent-m/releases/tag/v0.2.0
 [0.1.7]: https://github.com/wynnwu/agent-m/releases/tag/v0.1.7
