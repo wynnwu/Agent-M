@@ -1,4 +1,5 @@
 import SwiftUI
+import AppKit
 import AgentMCore
 
 /// What a transcript window needs to know, captured when it's opened.
@@ -60,14 +61,35 @@ struct TranscriptWindowBody: View {
     private var waitingForYou: Bool { records.last?.role == .assistant }
     private var visibleRecords: [TranscriptRecord] { records.filter { filter.includes($0.role) } }
 
-    private var metaLine: String {
+    /// The static (non-copyable) meta pieces, in order: model · kind · up-time.
+    /// The pid and id are rendered separately as interactive copy tokens.
+    private var staticMetaParts: [String] {
         var parts: [String] = []
         if let m = records.last(where: { $0.role == .assistant })?.model { parts.append(prettyModel(m)) }
         parts.append(target.kind)
-        if let pid = target.pid { parts.append("pid \(pid)") }
         if let s = target.startedAt { parts.append("up " + relativeTime(from: Date(timeIntervalSince1970: s / 1000), now: Date())) }
-        parts.append("id \(target.sessionId.prefix(8))")
-        return parts.joined(separator: "  ·  ")
+        return parts
+    }
+
+    /// model · kind · up-time · [pid 1234] · [id a1b2c3d4], where the bracketed
+    /// pieces are click-to-copy tokens (pid → raw pid, id → the *full* session id).
+    @ViewBuilder private var metaLine: some View {
+        let sep = Text("  ·  ").foregroundStyle(.tertiary)
+        HStack(spacing: 0) {
+            ForEach(Array(staticMetaParts.enumerated()), id: \.offset) { i, part in
+                if i > 0 { sep }
+                Text(part).textSelection(.enabled)
+            }
+            if let pid = target.pid {
+                sep
+                CopyToken(label: "pid \(pid)", value: "\(pid)")
+            }
+            sep
+            CopyToken(label: "id \(target.sessionId.prefix(8))", value: target.sessionId)
+        }
+        .font(.system(size: 14))
+        .foregroundStyle(.tertiary)
+        .lineLimit(1)
     }
 
     private var currentTurnStart: Date? { TranscriptParser.currentTurnStart(records: records) }
@@ -93,8 +115,7 @@ struct TranscriptWindowBody: View {
                     VStack(alignment: .leading, spacing: 2) {
                         Text(target.folder).font(.system(size: 18, weight: .semibold))
                         Text(target.parent).font(.system(size: 13)).foregroundStyle(.secondary).lineLimit(1)
-                        Text(metaLine).font(.system(size: 14)).foregroundStyle(.tertiary)
-                            .lineLimit(1).truncationMode(.tail).textSelection(.enabled)
+                        metaLine
                         turnTiming
                     }
                     Spacer(minLength: 8)
@@ -192,6 +213,45 @@ struct TranscriptContent: View {
                             in: RoundedRectangle(cornerRadius: 10))
             }
         }
+    }
+}
+
+/// A click-to-copy chip: shows `label` + the standard macOS copy glyph, copies
+/// `value` to the pasteboard on click, and briefly flashes a checkmark to confirm.
+/// Hovering highlights it and switches the cursor to a pointing hand so it reads
+/// as clickable.
+struct CopyToken: View {
+    let label: String
+    let value: String
+
+    @State private var hovering = false
+    @State private var justCopied = false
+
+    var body: some View {
+        HStack(spacing: 4) {
+            Text(label)
+            Image(systemName: justCopied ? "checkmark" : "doc.on.doc")
+                .font(.system(size: 11))
+                .foregroundStyle(justCopied ? Theme.working : Color.secondary)
+        }
+        .padding(.horizontal, 5).padding(.vertical, 1)
+        .background(hovering ? Color.white.opacity(0.08) : Color.clear,
+                    in: RoundedRectangle(cornerRadius: 5))
+        .contentShape(RoundedRectangle(cornerRadius: 5))
+        .fixedSize()                 // never truncate the pid/id — the whole point is to copy them
+        .onHover { inside in
+            hovering = inside
+            if inside { NSCursor.pointingHand.set() } else { NSCursor.arrow.set() }
+        }
+        .onTapGesture { copy() }
+        .help("Copy \(value)")
+    }
+
+    private func copy() {
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(value, forType: .string)
+        justCopied = true
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1) { justCopied = false }
     }
 }
 
