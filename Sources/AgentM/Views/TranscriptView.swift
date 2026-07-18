@@ -160,6 +160,16 @@ struct TranscriptWindowBody: View {
     /// Noun for the empty state, e.g. "No prompts in the last few turns."
     private var emptyNoun: String { filter == .all ? "turns" : filter.label.lowercased() }
 
+    /// Tooltip for the "Export all" button — makes clear it saves the WHOLE session for the
+    /// selected tab, not just the turns currently shown.
+    private var exportHelp: String {
+        switch filter {
+        case .all:       return "Export the whole session as Markdown — every prompt and response, not just the turns shown"
+        case .prompts:   return "Export all prompts from the whole session as Markdown — not just the turns shown"
+        case .responses: return "Export all responses from the whole session as Markdown — not just the turns shown"
+        }
+    }
+
     /// The static (non-copyable) meta pieces, in order: model · kind · up-time.
     /// The pid and id are rendered separately as interactive copy tokens.
     private var staticMetaParts: [String] {
@@ -262,8 +272,7 @@ struct TranscriptWindowBody: View {
                             Button { filter = f } label: {
                                 Text(f.label)
                                     .font(.system(size: 14, weight: .medium))
-                                    .frame(maxWidth: .infinity)
-                                    .padding(.vertical, 4)
+                                    .padding(.horizontal, 14).padding(.vertical, 4)
                                     .foregroundStyle(filter == f ? Color.primary : Color.secondary)
                                     .background(filter == f ? Color.white.opacity(0.14) : Color.clear,
                                                 in: RoundedRectangle(cornerRadius: 6))
@@ -275,7 +284,9 @@ struct TranscriptWindowBody: View {
                     .padding(2)
                     .background(Color.black.opacity(0.25), in: RoundedRectangle(cornerRadius: 8))
 
-                    ExportButton(disabled: notFound) { onExport(filter) }
+                    Spacer(minLength: 8)
+
+                    ExportButton(disabled: notFound, help: exportHelp) { onExport(filter) }
                 }
             }
             .padding(.horizontal, 14).padding(.top, 12).padding(.bottom, 10)
@@ -388,6 +399,8 @@ struct CopyToken: View {
 /// button (hover highlight + pointing-hand cursor) and matches the header's understated style.
 struct ExportButton: View {
     let disabled: Bool
+    /// Scope-aware tooltip spelling out that it saves the WHOLE session, not the visible turns.
+    var help: String = "Export the whole session as Markdown"
     let action: () -> Void
     @State private var hovering = false
 
@@ -395,7 +408,7 @@ struct ExportButton: View {
         Button(action: action) {
             HStack(spacing: 4) {
                 Image(systemName: "square.and.arrow.up").font(.system(size: 12))
-                Text("Export").font(.system(size: 14, weight: .medium))
+                Text("Export all").font(.system(size: 14, weight: .medium))
             }
             .foregroundStyle(disabled ? Color.secondary.opacity(0.5) : Color.secondary)
             .padding(.horizontal, 10).padding(.vertical, 5)
@@ -405,7 +418,7 @@ struct ExportButton: View {
         }
         .buttonStyle(.plain)
         .disabled(disabled)
-        .help("Export the whole session (current filter) as Markdown")
+        .help(help)
         .onHover { inside in
             hovering = inside
             if inside && !disabled { NSCursor.pointingHand.set() } else { NSCursor.arrow.set() }
