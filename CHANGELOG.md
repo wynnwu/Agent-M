@@ -4,6 +4,14 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.3] - 2026-07-19
+
+### Fixed
+- **Hover tooltips now actually appear** on the "Export all" button and the pid/id copy chips.
+  SwiftUI's `.help()` doesn't reliably show tooltips in an accessory (menu-bar) app, so these now
+  use an AppKit-backed tooltip (a transparent backing view's `toolTip`) that shows dependably and
+  never intercepts clicks.
+
 ## [0.3.2] - 2026-07-19
 
 ### Changed
@@ -205,6 +213,7 @@ First release.
 - `AgentMCore` library (models, JSONL parser, status grouping, formatting) with unit tests.
 - `scripts/make-app.sh` to package a double-clickable, menu-bar-only `.app`.
 
+[0.3.3]: https://github.com/wynnwu/agent-m/releases/tag/v0.3.3
 [0.3.2]: https://github.com/wynnwu/agent-m/releases/tag/v0.3.2
 [0.3.1]: https://github.com/wynnwu/agent-m/releases/tag/v0.3.1
 [0.3.0]: https://github.com/wynnwu/agent-m/releases/tag/v0.3.0

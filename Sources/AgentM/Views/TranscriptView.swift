@@ -384,7 +384,7 @@ struct CopyToken: View {
             if inside { NSCursor.pointingHand.set() } else { NSCursor.arrow.set() }
         }
         .onTapGesture { copy() }
-        .help("Copy \(value)")
+        .tooltip("Copy \(value)")
     }
 
     private func copy() {
@@ -418,7 +418,8 @@ struct ExportButton: View {
         }
         .buttonStyle(.plain)
         .disabled(disabled)
-        .help(help)
+        .tooltip(help)
+        .accessibilityHint(help)
         .onHover { inside in
             hovering = inside
             if inside && !disabled { NSCursor.pointingHand.set() } else { NSCursor.arrow.set() }
@@ -459,6 +460,31 @@ enum TranscriptExporter {
         let suffix = scope == .all ? "" : "-\(scope.rawValue)"
         return "\(base)\(suffix)-\(df.string(from: today)).md"
     }
+}
+
+/// An AppKit-backed hover tooltip. SwiftUI's `.help()` is unreliable in an accessory
+/// (menu-bar) app — this sets the underlying `NSView.toolTip`, which shows dependably. The
+/// backing view is transparent, sits behind the content, and never intercepts clicks.
+private struct TooltipBacking: NSViewRepresentable {
+    let text: String
+    func makeNSView(context: Context) -> NSView {
+        let v = PassthroughView()
+        v.toolTip = text
+        return v
+    }
+    func updateNSView(_ v: NSView, context: Context) {
+        if v.toolTip != text { v.toolTip = text }
+    }
+    /// Never steal mouse events from the SwiftUI control it backs (the tooltip rect, which
+    /// AppKit tracks separately, still fires on hover).
+    final class PassthroughView: NSView {
+        override func hitTest(_ point: NSPoint) -> NSView? { nil }
+    }
+}
+
+extension View {
+    /// Reliable AppKit hover tooltip. Prefer this over `.help()` in this app (see `TooltipBacking`).
+    func tooltip(_ text: String) -> some View { background(TooltipBacking(text: text)) }
 }
 
 /// "claude-opus-4-8" → "Opus 4.8". Falls back to the raw id for anything unusual.
