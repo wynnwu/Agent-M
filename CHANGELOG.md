@@ -4,6 +4,14 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.4] - 2026-07-19
+
+### Changed
+- **Removed the hover tooltips** on "Export all" and the copy chips — SwiftUI's `.help()` doesn't
+  fire reliably in a menu-bar-only app, and the AppKit workaround wasn't worth the complexity. What
+  Export does — saves the **whole session history of the selected filter (All / Prompts /
+  Responses)**, not just the visible turns — is now documented in the README instead.
+
 ## [0.3.3] - 2026-07-19
 
 ### Fixed
@@ -213,6 +221,7 @@ First release.
 - `AgentMCore` library (models, JSONL parser, status grouping, formatting) with unit tests.
 - `scripts/make-app.sh` to package a double-clickable, menu-bar-only `.app`.
 
+[0.3.4]: https://github.com/wynnwu/agent-m/releases/tag/v0.3.4
 [0.3.3]: https://github.com/wynnwu/agent-m/releases/tag/v0.3.3
 [0.3.2]: https://github.com/wynnwu/agent-m/releases/tag/v0.3.2
 [0.3.1]: https://github.com/wynnwu/agent-m/releases/tag/v0.3.1

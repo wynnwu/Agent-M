@@ -123,7 +123,6 @@ struct ExportToast: View {
             .contentShape(RoundedRectangle(cornerRadius: 10))
         }
         .buttonStyle(.plain)
-        .help("Reveal in Finder")
         .onHover { hovering = $0; if $0 { NSCursor.pointingHand.set() } else { NSCursor.arrow.set() } }
         .padding(.bottom, 16)
         .transition(.move(edge: .bottom).combined(with: .opacity))
@@ -159,16 +158,6 @@ struct TranscriptWindowBody: View {
     private var visibleRecords: [TranscriptRecord] { records.filter { filter.includes($0.role) } }
     /// Noun for the empty state, e.g. "No prompts in the last few turns."
     private var emptyNoun: String { filter == .all ? "turns" : filter.label.lowercased() }
-
-    /// Tooltip for the "Export all" button — makes clear it saves the WHOLE session for the
-    /// selected tab, not just the turns currently shown.
-    private var exportHelp: String {
-        switch filter {
-        case .all:       return "Export the whole session as Markdown — every prompt and response, not just the turns shown"
-        case .prompts:   return "Export all prompts from the whole session as Markdown — not just the turns shown"
-        case .responses: return "Export all responses from the whole session as Markdown — not just the turns shown"
-        }
-    }
 
     /// The static (non-copyable) meta pieces, in order: model · kind · up-time.
     /// The pid and id are rendered separately as interactive copy tokens.
@@ -286,7 +275,7 @@ struct TranscriptWindowBody: View {
 
                     Spacer(minLength: 8)
 
-                    ExportButton(disabled: notFound, help: exportHelp) { onExport(filter) }
+                    ExportButton(disabled: notFound) { onExport(filter) }
                 }
             }
             .padding(.horizontal, 14).padding(.top, 12).padding(.bottom, 10)
@@ -384,7 +373,6 @@ struct CopyToken: View {
             if inside { NSCursor.pointingHand.set() } else { NSCursor.arrow.set() }
         }
         .onTapGesture { copy() }
-        .tooltip("Copy \(value)")
     }
 
     private func copy() {
@@ -399,8 +387,6 @@ struct CopyToken: View {
 /// button (hover highlight + pointing-hand cursor) and matches the header's understated style.
 struct ExportButton: View {
     let disabled: Bool
-    /// Scope-aware tooltip spelling out that it saves the WHOLE session, not the visible turns.
-    var help: String = "Export the whole session as Markdown"
     let action: () -> Void
     @State private var hovering = false
 
@@ -418,8 +404,6 @@ struct ExportButton: View {
         }
         .buttonStyle(.plain)
         .disabled(disabled)
-        .tooltip(help)
-        .accessibilityHint(help)
         .onHover { inside in
             hovering = inside
             if inside && !disabled { NSCursor.pointingHand.set() } else { NSCursor.arrow.set() }
@@ -460,31 +444,6 @@ enum TranscriptExporter {
         let suffix = scope == .all ? "" : "-\(scope.rawValue)"
         return "\(base)\(suffix)-\(df.string(from: today)).md"
     }
-}
-
-/// An AppKit-backed hover tooltip. SwiftUI's `.help()` is unreliable in an accessory
-/// (menu-bar) app — this sets the underlying `NSView.toolTip`, which shows dependably. The
-/// backing view is transparent, sits behind the content, and never intercepts clicks.
-private struct TooltipBacking: NSViewRepresentable {
-    let text: String
-    func makeNSView(context: Context) -> NSView {
-        let v = PassthroughView()
-        v.toolTip = text
-        return v
-    }
-    func updateNSView(_ v: NSView, context: Context) {
-        if v.toolTip != text { v.toolTip = text }
-    }
-    /// Never steal mouse events from the SwiftUI control it backs (the tooltip rect, which
-    /// AppKit tracks separately, still fires on hover).
-    final class PassthroughView: NSView {
-        override func hitTest(_ point: NSPoint) -> NSView? { nil }
-    }
-}
-
-extension View {
-    /// Reliable AppKit hover tooltip. Prefer this over `.help()` in this app (see `TooltipBacking`).
-    func tooltip(_ text: String) -> some View { background(TooltipBacking(text: text)) }
 }
 
 /// "claude-opus-4-8" → "Opus 4.8". Falls back to the raw id for anything unusual.
