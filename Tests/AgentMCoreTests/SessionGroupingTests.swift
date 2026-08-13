@@ -19,6 +19,29 @@ final class SessionGroupingTests: XCTestCase {
         XCTAssertEqual(bucket(for: mk("d", .background, state: .done), asksQuestion: true), .idle)
     }
 
+    func test_dedupeBySession_keepsNewestProcessPerSession() {
+        // Same conversation, two live processes (original + a later `claude resume`): the CLI
+        // lists both under one sessionId. Regression for a crash when this fed a
+        // Dictionary(uniqueKeysWithValues:), and for the duplicate row it produced.
+        let old = AgentSession(sessionId: "dup", cwd: "/p", kind: .interactive, status: .idle,
+                               pid: 111, startedAt: 1_000)
+        let new = AgentSession(sessionId: "dup", cwd: "/p", kind: .interactive, status: .idle,
+                               pid: 222, startedAt: 2_000)
+        let other = AgentSession(sessionId: "solo", cwd: "/q", kind: .interactive, status: .idle,
+                                 pid: 333, startedAt: 1_500)
+
+        let deduped = dedupeBySession([old, new, other])
+        XCTAssertEqual(deduped.count, 2)
+        XCTAssertEqual(deduped.map(\.sessionId), ["dup", "solo"]) // first-appearance order preserved
+        XCTAssertEqual(deduped.first { $0.sessionId == "dup" }?.pid, 222) // newest startedAt wins
+
+        // Order-independent: newest wins even when it appears first.
+        XCTAssertEqual(dedupeBySession([new, old]).first?.pid, 222)
+        // A nil startedAt loses to any real timestamp.
+        let noTime = AgentSession(sessionId: "dup", cwd: "/p", kind: .interactive, pid: 444)
+        XCTAssertEqual(dedupeBySession([noTime, old]).first?.pid, 111)
+    }
+
     func test_groups_and_badge() {
         let sessions = [
             mk("idle1", .interactive, status: .idle),

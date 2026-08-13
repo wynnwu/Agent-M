@@ -4,6 +4,19 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.5] - 2026-08-13
+
+### Fixed
+- **No more crash on launch when a conversation has more than one live process.** A `sessionId`
+  identifies a *conversation*, not a process — so leaving an old session's terminal open and then
+  running `claude resume` on it leaves two live `claude` processes bound to the same `sessionId`,
+  which `claude agents --json` reports as two entries. The app built a `Dictionary` keyed by
+  `sessionId` that *traps* on a duplicate key, so it aborted on its very first status refresh (i.e.
+  instantly on launch) whenever this state existed. Sessions are now de-duplicated the moment they
+  arrive from the CLI — keeping the **most-recently-started** process, so "jump to terminal" targets
+  the tab you're actually in rather than a stale one — and the pid map no longer traps on duplicates.
+- As a consequence, a duplicated session no longer renders as **two identical rows** in the list.
+
 ## [0.3.4] - 2026-07-19
 
 ### Changed
@@ -221,6 +234,7 @@ First release.
 - `AgentMCore` library (models, JSONL parser, status grouping, formatting) with unit tests.
 - `scripts/make-app.sh` to package a double-clickable, menu-bar-only `.app`.
 
+[0.3.5]: https://github.com/wynnwu/agent-m/releases/tag/v0.3.5
 [0.3.4]: https://github.com/wynnwu/agent-m/releases/tag/v0.3.4
 [0.3.3]: https://github.com/wynnwu/agent-m/releases/tag/v0.3.3
 [0.3.2]: https://github.com/wynnwu/agent-m/releases/tag/v0.3.2

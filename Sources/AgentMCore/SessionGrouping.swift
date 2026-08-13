@@ -52,6 +52,27 @@ public func nextPollInterval(current: Double, fast: Bool, minInterval: Double, m
     fast ? minInterval : min(current * 2, maxInterval)
 }
 
+/// Collapse a session list to one entry per `sessionId`.
+///
+/// `claude agents --json` reports one entry *per live process*, and a `sessionId` identifies a
+/// conversation, not a process: if the original process is still alive and you `claude resume`
+/// the same conversation, both processes are live and the id appears twice. We keep the
+/// most-recently-started process — that's the tab you're actually in, so "jump to terminal"
+/// targets the current one rather than a stale leftover. First-appearance order is preserved.
+public func dedupeBySession(_ sessions: [AgentSession]) -> [AgentSession] {
+    var best: [String: AgentSession] = [:]
+    var order: [String] = []
+    for s in sessions {
+        if let existing = best[s.sessionId] {
+            if (s.startedAt ?? -.infinity) > (existing.startedAt ?? -.infinity) { best[s.sessionId] = s }
+        } else {
+            best[s.sessionId] = s
+            order.append(s.sessionId)
+        }
+    }
+    return order.compactMap { best[$0] }
+}
+
 public func groupSessions(_ sessions: [AgentSession],
                           lastActivity: [String: Date],
                           asksQuestion: [String: Bool],

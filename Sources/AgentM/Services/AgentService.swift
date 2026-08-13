@@ -78,16 +78,24 @@ final class AgentService {
         isRefreshing = true
         defer { isRefreshing = false }
         do {
-            let sessions = try await cli.fetchSessions()
+            // One conversation can have several live processes bound to it (e.g. a stale
+            // session plus a later `claude resume` of it), which `claude agents --json` lists
+            // separately under the same sessionId. Collapse to one entry per session up front
+            // so nothing downstream (the pid map, grouping, SwiftUI row identity) sees a dupe.
+            let sessions = dedupeBySession(try await cli.fetchSessions())
             errorMessage = nil
             // Off-main IO for mtimes + last prompts.
             let ids = sessions.map(\.sessionId)
             // sessionId → pid for live interactive sessions, used to consult the per-PID
             // registry for a finer status than `claude agents --json` reports.
-            let interactivePIDs: [String: Int] = Dictionary(uniqueKeysWithValues:
+            // `claude agents --json` can momentarily report the same sessionId twice
+            // (e.g. a session mid-restart). Dedupe tolerantly — trapping on a duplicate
+            // key would crash the whole app on refresh.
+            let interactivePIDs: [String: Int] = Dictionary(
                 sessions.compactMap { s in
                     (s.kind == .interactive) ? s.pid.map { (s.sessionId, $0) } : nil
-                })
+                },
+                uniquingKeysWith: { first, _ in first })
             let cacheIn = self.infoCache
             let io = await Task.detached { () -> (act: [String: Date], prompts: [String: String], branches: [String: String], asks: [String: Bool], models: [String: String], registry: [String: String], turnStarts: [String: Date], cache: [String: CachedInfo]) in
                 var act: [String: Date] = [:]
