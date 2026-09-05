@@ -28,11 +28,11 @@ cat > "$APP/Contents/Info.plist" <<'PLIST'
 <dict>
   <key>CFBundleName</key><string>AgentM</string>
   <key>CFBundleDisplayName</key><string>Agent M</string>
-  <key>CFBundleIdentifier</key><string>xyz.joystudios.agent-m</string>
+  <key>CFBundleIdentifier</key><string>com.wynnwu.agent-m</string>
   <key>CFBundleExecutable</key><string>AgentM</string>
   <key>CFBundlePackageType</key><string>APPL</string>
-  <key>CFBundleShortVersionString</key><string>0.3.5</string>
-  <key>CFBundleVersion</key><string>17</string>
+  <key>CFBundleShortVersionString</key><string>0.3.6</string>
+  <key>CFBundleVersion</key><string>18</string>
   <key>CFBundleIconFile</key><string>AppIcon</string>
   <key>LSMinimumSystemVersion</key><string>14.0</string>
   <key>LSUIElement</key><true/>
