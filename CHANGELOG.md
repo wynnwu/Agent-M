@@ -4,6 +4,14 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.7] - 2026-10-14
+
+### Fixed
+- **A long folder name no longer squeezes the timer into a one-letter-wide column.** The row's
+  folder name took all the header width before the elapsed-time label got any, so the timer wrapped
+  one character per line and stretched the card. The timer (and the idle "27m"-style timestamp) now
+  always keeps its natural width, and the folder name truncates with an ellipsis to fit beside it.
+
 ## [0.3.6] - 2026-09-06
 
 ### Changed
@@ -239,6 +247,7 @@ First release.
 - `AgentMCore` library (models, JSONL parser, status grouping, formatting) with unit tests.
 - `scripts/make-app.sh` to package a double-clickable, menu-bar-only `.app`.
 
+[0.3.7]: https://github.com/wynnwu/agent-m/releases/tag/v0.3.7
 [0.3.5]: https://github.com/wynnwu/agent-m/releases/tag/v0.3.5
 [0.3.4]: https://github.com/wynnwu/agent-m/releases/tag/v0.3.4
 [0.3.3]: https://github.com/wynnwu/agent-m/releases/tag/v0.3.3

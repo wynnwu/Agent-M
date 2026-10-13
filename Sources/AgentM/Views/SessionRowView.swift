@@ -48,9 +48,11 @@ struct SessionRowView: View {
                                     .labelStyle(.titleAndIcon)
                                     .font(.system(size: 13)).foregroundStyle(Theme.tint(.working)).monospacedDigit()
                             }
+                            .fixedSize() // the folder name truncates; the timer never wraps
                         } else if let a = lastActivity {
                             Text(relativeTime(from: a, now: Date()))
                                 .font(.system(size: 13)).foregroundStyle(.tertiary).monospacedDigit()
+                                .fixedSize()
                         }
                     }
                     Text(promptText).font(.system(size: 15)).foregroundStyle(.secondary).lineLimit(2)
